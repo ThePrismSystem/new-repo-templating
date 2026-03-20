@@ -6,13 +6,14 @@ TEMPLATES_DIR="$SCRIPT_DIR/templates"
 
 # --- Defaults ---
 FLAVOR="typescript-node"
+VISIBILITY="public"
 TARGET_DIR=""
 PROJECT_NAME=""
 
 # --- Usage ---
 usage() {
   cat <<EOF
-Usage: $0 <project-name> [target-dir] [--flavor typescript-node|typescript-react]
+Usage: $0 <project-name> [target-dir] [--flavor typescript-node|typescript-react] [--visibility public|private]
 
 Arguments:
   project-name    Name for the new project (used in package.json, README, etc.)
@@ -21,6 +22,9 @@ Arguments:
 Options:
   --flavor        Template flavor (default: typescript-node)
                   Available: typescript-node, typescript-react
+  --visibility    Repository visibility (default: public)
+                  public:  includes CodeQL + Gitleaks workflows
+                  private: skips public-only workflows
   -h, --help      Show this help message
 EOF
   exit 0
@@ -31,6 +35,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --flavor)
       FLAVOR="$2"
+      shift 2
+      ;;
+    --visibility)
+      VISIBILITY="$2"
+      if [[ "$VISIBILITY" != "public" && "$VISIBILITY" != "private" ]]; then
+        echo "Error: --visibility must be 'public' or 'private'" >&2
+        exit 1
+      fi
       shift 2
       ;;
     -h|--help)
@@ -64,7 +76,7 @@ TARGET_DIR="${TARGET_DIR:-./$PROJECT_NAME}"
 # --- Validate flavor ---
 if [[ ! -d "$TEMPLATES_DIR/$FLAVOR" ]]; then
   echo "Error: Unknown flavor '$FLAVOR'. Available flavors:" >&2
-  ls -1 "$TEMPLATES_DIR" | grep -v _shared >&2
+  ls -1 "$TEMPLATES_DIR" | grep -v '^_' >&2
   exit 1
 fi
 
@@ -80,8 +92,9 @@ YEAR="$(date +%Y)"
 NODE_VERSION="$(cat "$TEMPLATES_DIR/$FLAVOR/.nvmrc" 2>/dev/null || echo "22")"
 
 echo "Creating project '$PROJECT_NAME' with flavor '$FLAVOR'..."
-echo "  Target:  $TARGET_DIR"
-echo "  Owner:   $GITHUB_OWNER"
+echo "  Target:     $TARGET_DIR"
+echo "  Owner:      $GITHUB_OWNER"
+echo "  Visibility: $VISIBILITY"
 
 # --- Copy files ---
 mkdir -p "$TARGET_DIR"
@@ -91,6 +104,11 @@ cp -r "$TEMPLATES_DIR/_shared/." "$TARGET_DIR/"
 
 # Copy flavor files (overwrites any shared duplicates)
 cp -r "$TEMPLATES_DIR/$FLAVOR/." "$TARGET_DIR/"
+
+# Copy public-only files if visibility is public
+if [[ "$VISIBILITY" == "public" ]]; then
+  cp -r "$TEMPLATES_DIR/_public/." "$TARGET_DIR/"
+fi
 
 # --- Replace placeholders ---
 find "$TARGET_DIR" -type f | while read -r file; do

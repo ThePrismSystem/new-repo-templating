@@ -17,16 +17,27 @@
     "test:coverage": "vitest run --coverage",
     "test:unit:coverage": "vitest run --exclude '**/*.integration.{test,spec}.ts' --coverage",
     "test:watch": "vitest",
+    "knip": "knip",
+    "spell": "cspell \"**/*.{ts,tsx,md,json}\" --no-progress",
     "prepare": "husky"
   },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.0",
+    "zod": "^3.24.0"
+  },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
+    "@types/node": "^22.0.0",
+    "cspell": "^9.0.0",
     "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^10.0.3",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-unicorn": "^63.0.0",
     "husky": "^9.1.7",
+    "knip": "^5.0.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.5.3",
     "tsx": "^4.19.0",

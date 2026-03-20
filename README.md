@@ -15,8 +15,14 @@ Node.js backend, CLI, or library template.
 - Prettier with consistent formatting (semicolons, double quotes, 100 char width)
 - Vitest with v8 coverage (80% thresholds)
 - Husky + lint-staged (pre-commit: format + lint, pre-push: typecheck + lint + test)
-- GitHub Actions CI (lint, typecheck, unit tests in parallel)
-- GitHub templates (PR template, bug report, dependabot, CODEOWNERS)
+- Commitlint enforcing Conventional Commits on commit-msg hook
+- Knip for detecting unused code and dependencies
+- cspell for spell checking source files
+- t3-env for type-safe environment variables with Zod validation
+- Renovate for automated dependency updates (replaces Dependabot)
+- GitHub Actions CI (lint, typecheck, unit tests, quality checks in parallel)
+- GitHub templates (PR template, bug report, CODEOWNERS)
+- CodeQL security scanning and Gitleaks secret scanning (public repos only)
 
 ### `typescript-react`
 
@@ -25,23 +31,27 @@ Vite + React SPA template. Includes everything from `typescript-node` plus:
 - Vite dev server and build
 - React 19 with JSX transform
 - eslint-plugin-react-hooks and eslint-plugin-react-refresh
-- jsdom test environment
+- jsdom test environment with @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
+- rollup-plugin-visualizer for bundle analysis (`pnpm analyze`)
 - CI build job that depends on lint + typecheck
 
 ## Usage
 
 ```bash
-./setup.sh <project-name> [target-dir] [--flavor typescript-node|typescript-react]
+./setup.sh <project-name> [target-dir] [--flavor typescript-node|typescript-react] [--visibility public|private]
 ```
 
 ### Examples
 
 ```bash
-# Create a Node.js project in ./my-api
+# Create a Node.js project in ./my-api (public, default)
 ./setup.sh my-api
 
 # Create a React project in a specific directory
 ./setup.sh my-app /path/to/my-app --flavor typescript-react
+
+# Create a private repo without CodeQL/Gitleaks workflows
+./setup.sh my-internal-api --visibility private
 
 # Create a library
 ./setup.sh my-lib ./packages/my-lib --flavor typescript-node
@@ -51,8 +61,16 @@ The script will:
 
 1. Copy shared configs (`.editorconfig`, `.prettierrc.js`, `.gitignore`, GitHub templates, etc.)
 2. Copy the selected flavor's files (ESLint, TypeScript, Vitest configs, CI, husky hooks, etc.)
-3. Replace placeholders (`{{PROJECT_NAME}}`, `{{GITHUB_OWNER}}`, `{{YEAR}}`, etc.)
-4. Run `git init`, `pnpm install`, and `husky` setup
+3. If `--visibility public` (default), copy public-only workflows (CodeQL, Gitleaks)
+4. Replace placeholders (`{{PROJECT_NAME}}`, `{{GITHUB_OWNER}}`, `{{YEAR}}`, etc.)
+5. Run `git init`, `pnpm install`, and `husky` setup
+
+### Visibility
+
+| Visibility | Includes |
+|---|---|
+| `public` (default) | All tools + CodeQL security scanning + Gitleaks secret scanning |
+| `private` | All tools except CodeQL and Gitleaks (require public repo access) |
 
 ### Placeholders
 
@@ -83,6 +101,12 @@ The script will:
 | `eslint.config.js` | Linting with strict TypeScript rules |
 | `tsconfig.json` | TypeScript compiler config |
 | `vitest.config.ts` | Test runner with coverage |
-| `.husky/*` | Git hooks (pre-commit, pre-push) |
-| `.github/workflows/ci.yml` | CI pipeline |
-| `.github/` | PR template, issue templates, dependabot, CODEOWNERS |
+| `.husky/*` | Git hooks (pre-commit, pre-push, commit-msg) |
+| `commitlint.config.js` | Conventional Commits enforcement |
+| `knip.json` | Unused code/dependency detection |
+| `cspell.config.yaml` | Spell checking configuration |
+| `renovate.json` | Automated dependency updates |
+| `.github/workflows/ci.yml` | CI pipeline (lint, typecheck, test, quality) |
+| `.github/workflows/codeql.yml` | CodeQL security scanning (public only) |
+| `.github/workflows/gitleaks.yml` | Secret scanning (public only) |
+| `.github/` | PR template, issue templates, CODEOWNERS |

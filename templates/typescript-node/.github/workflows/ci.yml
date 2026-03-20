@@ -35,6 +35,9 @@ jobs:
       - name: Lint (zero warnings)
         run: pnpm lint
 
+      - name: Audit dependencies
+        run: pnpm audit --audit-level moderate
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
@@ -78,3 +81,24 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 14
+
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check for unused code
+        run: pnpm knip
+
+      - name: Spell check
+        run: pnpm spell

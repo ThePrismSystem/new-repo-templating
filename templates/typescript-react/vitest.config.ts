@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    setupFiles: ["./src/test-setup.ts"],
     passWithNoTests: true,
     globals: false,
     restoreMocks: true,
@@ -19,6 +20,7 @@ export default defineConfig({
         "**/*.d.ts",
         "src/main.tsx",
         "src/vite-env.d.ts",
+        "src/test-setup.ts",
       ],
       reporter: ["text", "lcov", "html"],
       reportsDirectory: "./coverage",
