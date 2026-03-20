@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# Agent config (per-contributor)
+CLAUDE.md
+.claude/
+
+# Temporary files
+.tmp/
+*.log
+*.patch
