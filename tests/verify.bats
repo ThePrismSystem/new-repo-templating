@@ -63,3 +63,36 @@ teardown() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"codeql.yml"* ]]
 }
+
+@test "resolve_test_script picks the node flavor's unit coverage script" {
+  mkdir -p "$WORK"
+  cat > "$WORK/package.json" <<'JSON'
+{ "scripts": { "test:coverage": "vitest run --coverage",
+               "test:unit:coverage": "vitest run --exclude x --coverage" } }
+JSON
+  run resolve_test_script "$WORK"
+  [ "$status" -eq 0 ]
+  [ "$output" = "test:unit:coverage" ]
+}
+
+@test "resolve_test_script falls back to plain coverage script" {
+  mkdir -p "$WORK"
+  cat > "$WORK/package.json" <<'JSON'
+{ "scripts": { "test:coverage": "vitest run --coverage" } }
+JSON
+  run resolve_test_script "$WORK"
+  [ "$status" -eq 0 ]
+  [ "$output" = "test:coverage" ]
+}
+
+@test "--help exits zero" {
+  run "$REPO_ROOT/verify.sh" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"--skip-audit"* ]]
+}
+
+@test "unknown flavor is rejected" {
+  run "$REPO_ROOT/verify.sh" --flavor typescript-cobol
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Unknown flavor"* ]]
+}
