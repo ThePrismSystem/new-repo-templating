@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:disableTypesNodeMajor"],
+  "schedule": ["before 9am on monday"],
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "typescript-eslint peers typescript <6.1.0. Without this cap Renovate opens a TypeScript 7 PR every week that verify.sh correctly rejects.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
+      "description": "Node baseline is a deliberate LTS policy decision. Renovate would push .nvmrc to the current non-LTS release.",
+      "matchManagers": ["nvm"],
+      "enabled": false
+    },
+    {
+      "description": "Digest pinning is right for a generated project but wrong inside template files, where it would emit scaffolds full of SHAs that read as stale on day one.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": false
+    }
+  ]
+}

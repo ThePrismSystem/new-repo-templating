@@ -5,6 +5,11 @@
   "prConcurrentLimit": 10,
   "packageRules": [
     {
+      "description": "typescript-eslint peers typescript <6.1.0. Without this cap Renovate opens a TypeScript 7 PR that CI correctly rejects.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1.0"
+    },
+    {
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["patch", "minor"],
       "groupName": "dev dependencies (non-major)"

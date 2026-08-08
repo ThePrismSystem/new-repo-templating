@@ -7,6 +7,7 @@ TEMPLATES_DIR="$SCRIPT_DIR/templates"
 # --- Defaults ---
 FLAVOR="typescript-node"
 VISIBILITY="public"
+NO_INSTALL=false
 TARGET_DIR=""
 PROJECT_NAME=""
 
@@ -25,6 +26,7 @@ Options:
   --visibility    Repository visibility (default: public)
                   public:  includes CodeQL + Gitleaks workflows
                   private: skips public-only workflows
+  --no-install    Skip 'pnpm install' and husky setup (used by verify.sh)
   -h, --help      Show this help message
 EOF
   exit 0
@@ -44,6 +46,10 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       shift 2
+      ;;
+    --no-install)
+      NO_INSTALL=true
+      shift
       ;;
     -h|--help)
       usage
@@ -76,7 +82,12 @@ TARGET_DIR="${TARGET_DIR:-./$PROJECT_NAME}"
 # --- Validate flavor ---
 if [[ ! -d "$TEMPLATES_DIR/$FLAVOR" ]]; then
   echo "Error: Unknown flavor '$FLAVOR'. Available flavors:" >&2
-  ls -1 "$TEMPLATES_DIR" | grep -v '^_' >&2
+  for flavor_dir in "$TEMPLATES_DIR"/*; do
+    flavor_name="${flavor_dir##*/}"
+    if [[ "$flavor_name" != _* ]]; then
+      echo "$flavor_name" >&2
+    fi
+  done
   exit 1
 fi
 
@@ -87,7 +98,7 @@ if [[ -d "$TARGET_DIR" ]]; then
 fi
 
 # --- Resolve placeholders ---
-GITHUB_OWNER="$(gh api user -q .login 2>/dev/null || echo "$USER")"
+GITHUB_OWNER="$(gh api user -q .login 2>/dev/null || echo "${USER:-unknown}")"
 YEAR="$(date +%Y)"
 NODE_VERSION="$(cat "$TEMPLATES_DIR/$FLAVOR/.nvmrc" 2>/dev/null || echo "22")"
 
@@ -126,12 +137,18 @@ done
 
 # --- Initialize project ---
 echo ""
-echo "Initializing git and installing dependencies..."
+if [[ "$NO_INSTALL" == "false" ]]; then
+  echo "Initializing git and installing dependencies..."
+else
+  echo "Initializing git (skipping install)..."
+fi
 
 cd "$TARGET_DIR"
 git init -q
-pnpm install
-pnpm exec husky
+if [[ "$NO_INSTALL" == "false" ]]; then
+  pnpm install
+  pnpm exec husky
+fi
 
 # --- Summary ---
 echo ""

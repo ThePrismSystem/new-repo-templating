@@ -10,7 +10,7 @@ All configs are derived from the an internal monorepo shared tooling packages, f
 
 Node.js backend, CLI, or library template.
 
-- TypeScript 5.7 with strict mode, ES2022 target, Bundler resolution
+- TypeScript 6.0 with strict mode, ES2022 target, Bundler resolution
 - ESLint 10 with typescript-eslint strict type checking, import ordering, unicorn, prettier compat
 - Prettier with consistent formatting (semicolons, double quotes, 100 char width)
 - Vitest with v8 coverage (80% thresholds)
@@ -81,6 +81,35 @@ The script will:
 | `{{PROJECT_DESCRIPTION}}` | Default generated (editable after) |
 | `{{YEAR}}` | Current year |
 | `{{NODE_VERSION}}` | From `.nvmrc` in the flavor |
+
+## Verifying Templates
+
+The templates carry no lockfiles, so every scaffold resolves the newest release
+matching each range. `verify.sh` scaffolds each flavor into a temp directory and
+runs the same checks the generated project's CI runs, so template breakage is
+caught here rather than by whoever next runs `setup.sh`.
+
+It invokes those checks directly as pnpm scripts and never executes the
+scaffolded workflow files, so a green run shows the template's checks pass — not
+that its CI is wired up correctly. The step list is also not identical to any one
+flavor's CI: `verify.sh` runs `build` for both flavors, while the node template's
+CI has no build job.
+
+```bash
+./verify.sh                              # both flavors
+./verify.sh --flavor typescript-react    # one flavor
+./verify.sh --keep                       # leave scaffolds on disk to debug
+./verify.sh --skip-audit                 # skip pnpm audit
+```
+
+Each run scaffolds twice per flavor: once private with `--no-install` for the
+structural checks (no leftover `{{PLACEHOLDER}}`, correct visibility gating),
+and once public with a full install for the gate itself (`format`, `lint`,
+`typecheck`, coverage tests, `knip`, `spell`, `build`, `pnpm audit`).
+
+CI runs this on every push and PR, plus weekly, so an upstream release that
+breaks a template surfaces as a failed run here. Shell changes are covered by
+`bats tests/` and `shellcheck`.
 
 ## Adding a New Flavor
 

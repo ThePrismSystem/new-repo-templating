@@ -1,0 +1,63 @@
+name: Verify Templates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly drift check. The templates carry no lockfiles, so a scaffold
+    # resolves the newest release matching each range - upstream can break
+    # them with no change to this repo.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell:
+    name: Shell Lint and Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Shellcheck
+        run: shellcheck setup.sh verify.sh
+
+      - name: Bats
+        run: bats tests/
+
+  verify:
+    name: Verify ${{ matrix.flavor }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Report every flavor's result. On a drift run the second flavor's
+      # failure is as informative as the first.
+      fail-fast: false
+      matrix:
+        flavor: [typescript-node, typescript-react]
+    steps:
+      - uses: actions/checkout@v7
+
+      # `version` is required here: the action falls back to a
+      # `packageManager` field, and this repo has no package.json.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: templates/${{ matrix.flavor }}/.nvmrc
+          # No pnpm cache: this repo has no lockfile, and caching resolution
+          # would blunt the upstream drift the scheduled run exists to catch.
+
+      - name: Verify flavor
+        run: ./verify.sh --flavor ${{ matrix.flavor }}
