@@ -1,0 +1,5 @@
+# Agent config (per-contributor)
+.claude/
+
+# Agent working docs (specs and plans, kept locally)
+docs/superpowers/
