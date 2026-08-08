@@ -10,7 +10,7 @@ All configs are derived from the an internal monorepo shared tooling packages, f
 
 Node.js backend, CLI, or library template.
 
-- TypeScript 5.7 with strict mode, ES2022 target, Bundler resolution
+- TypeScript 6.0 with strict mode, ES2022 target, Bundler resolution
 - ESLint 10 with typescript-eslint strict type checking, import ordering, unicorn, prettier compat
 - Prettier with consistent formatting (semicolons, double quotes, 100 char width)
 - Vitest with v8 coverage (80% thresholds)
@@ -81,6 +81,29 @@ The script will:
 | `{{PROJECT_DESCRIPTION}}` | Default generated (editable after) |
 | `{{YEAR}}` | Current year |
 | `{{NODE_VERSION}}` | From `.nvmrc` in the flavor |
+
+## Verifying Templates
+
+The templates carry no lockfiles, so every scaffold resolves the newest release
+matching each range. `verify.sh` scaffolds each flavor into a temp directory and
+runs the same gate the generated project's own CI runs, so template breakage is
+caught here rather than by whoever next runs `setup.sh`.
+
+```bash
+./verify.sh                              # both flavors
+./verify.sh --flavor typescript-react    # one flavor
+./verify.sh --keep                       # leave scaffolds on disk to debug
+./verify.sh --skip-audit                 # skip pnpm audit
+```
+
+Each run scaffolds twice per flavor: once private with `--no-install` for the
+structural checks (no leftover `{{PLACEHOLDER}}`, correct visibility gating),
+and once public with a full install for the gate itself (`format`, `lint`,
+`typecheck`, coverage tests, `knip`, `spell`, `build`, `pnpm audit`).
+
+CI runs this on every push and PR, plus weekly, so an upstream release that
+breaks a template surfaces as a failed run here. Shell changes are covered by
+`bats tests/` and `shellcheck`.
 
 ## Adding a New Flavor
 
