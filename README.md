@@ -35,6 +35,16 @@ Vite + React SPA template. Includes everything from `typescript-node` plus:
 - rollup-plugin-visualizer for bundle analysis (`pnpm analyze`)
 - CI build job that depends on lint + typecheck
 
+## Pinned Versions
+
+Two dependencies are deliberately held below their latest release. Both are enforced by `renovate.json`, so they will not drift silently — but if you change them by hand, read this first.
+
+**`typescript` is pinned `~6.0.3` — the tilde is load-bearing.** `typescript-eslint` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`, and there is no newer major line of it. A caret (`^6.0.3`) would admit 6.1.0 the day it ships and break the peer. TypeScript 7 is out for the same reason. Revisit when typescript-eslint supports the TypeScript 7 compiler API.
+
+**`@types/node` tracks `.nvmrc`, not its own latest.** The templates run Node 24 (Active LTS), so `@types/node` stays on the 24 line. Typing against Node 26 APIs while running Node 24 produces code that compiles and then fails at runtime.
+
+One behavior worth knowing if you touch the TypeScript pin: **TypeScript 6.0 no longer auto-includes `@types/*` packages without an explicit `types` entry.** That is why `typescript-node`'s `tsconfig.json` sets `"types": ["node"]`, and why the react template can keep Node globals out of browser code by listing `types` only in `tsconfig.node.json`. If the pin moves, re-verify that boundary rather than assuming it holds.
+
 ## Usage
 
 ```bash

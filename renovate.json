@@ -3,7 +3,13 @@
   "extends": ["config:recommended", "helpers:disableTypesNodeMajor"],
   "schedule": ["before 9am on monday"],
   "prConcurrentLimit": 10,
+  "automerge": true,
+  "platformAutomerge": false,
   "packageRules": [
+    {
+      "description": "Automerge is gated on CI: Renovate merges only when the branch's status checks are green, and Verify Templates scaffolds both flavors and runs their full gate on every PR. platformAutomerge is off deliberately - GitHub's native auto-merge requires branch protection with required checks, which is unavailable on this repo, so Renovate performs the merge itself after confirming status.",
+      "matchPackageNames": ["*"]
+    },
     {
       "description": "typescript-eslint peers typescript <6.1.0. Without this cap Renovate opens a TypeScript 7 PR every week that verify.sh correctly rejects.",
       "matchPackageNames": ["typescript"],
