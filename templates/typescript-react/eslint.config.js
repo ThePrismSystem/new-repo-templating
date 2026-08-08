@@ -12,7 +12,6 @@ export default tseslint.config(
       "**/dist/**",
       "**/build/**",
       "**/node_modules/**",
-      "**/vitest.config.ts",
       "**/vite.config.ts",
       "**/test-setup.ts",
     ],
@@ -21,7 +20,13 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // The project service only auto-discovers `tsconfig.json`, which scopes
+        // itself to `src`. Root-level tooling files live in tsconfig.node.json,
+        // so point the service at it explicitly or they lint without type info.
+        projectService: {
+          allowDefaultProject: ["vitest.config.ts"],
+          defaultProject: "tsconfig.node.json",
+        },
       },
     },
   },
