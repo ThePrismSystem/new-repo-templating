@@ -86,8 +86,14 @@ The script will:
 
 The templates carry no lockfiles, so every scaffold resolves the newest release
 matching each range. `verify.sh` scaffolds each flavor into a temp directory and
-runs the same gate the generated project's own CI runs, so template breakage is
+runs the same checks the generated project's CI runs, so template breakage is
 caught here rather than by whoever next runs `setup.sh`.
+
+It invokes those checks directly as pnpm scripts and never executes the
+scaffolded workflow files, so a green run shows the template's checks pass — not
+that its CI is wired up correctly. The step list is also not identical to any one
+flavor's CI: `verify.sh` runs `build` for both flavors, while the node template's
+CI has no build job.
 
 ```bash
 ./verify.sh                              # both flavors
