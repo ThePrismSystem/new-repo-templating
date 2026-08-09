@@ -18,6 +18,11 @@ jobs:
   scan:
     name: Secret Scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # On pull_request the action enumerates the PR's commits via
+      # GET /repos/{owner}/{repo}/pulls/{n}/commits, which 403s without this.
+      pull-requests: read
     steps:
       # Full history: a secret committed and later removed is still a leaked
       # secret, and a shallow clone would not see it.
