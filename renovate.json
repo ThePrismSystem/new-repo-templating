@@ -23,7 +23,14 @@
     {
       "description": "Digest pinning is right for a generated project but wrong inside template files, where it would emit scaffolds full of SHAs that read as stale on day one.",
       "matchManagers": ["github-actions"],
+      "matchFileNames": ["templates/**"],
       "pinDigests": false
+    },
+    {
+      "description": "This repo's own workflows are pinned to commit SHAs. Unlike the template files, these are executed rather than copied, so a moved tag is a supply-chain risk rather than a cosmetic one.",
+      "matchManagers": ["github-actions"],
+      "matchFileNames": [".github/workflows/**"],
+      "pinDigests": true
     }
   ]
 }

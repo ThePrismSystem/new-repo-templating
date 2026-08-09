@@ -24,7 +24,7 @@ jobs:
     name: Shell Lint and Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install bats
         run: sudo apt-get update && sudo apt-get install -y bats
@@ -45,15 +45,15 @@ jobs:
       matrix:
         flavor: [typescript-node, typescript-react]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # `version` is required here: the action falls back to a
       # `packageManager` field, and this repo has no package.json.
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 10
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: templates/${{ matrix.flavor }}/.nvmrc
           # No pnpm cache: this repo has no lockfile, and caching resolution
