@@ -1,0 +1,3 @@
+# Ownership for this repository. The CODEOWNERS under templates/_shared/ is a
+# template shipped into generated projects and is unrelated to this file.
+* @ThePrismSystem
