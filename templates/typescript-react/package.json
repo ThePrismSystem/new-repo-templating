@@ -4,7 +4,7 @@
   "private": true,
   "description": "{{PROJECT_DESCRIPTION}}",
   "type": "module",
-  "packageManager": "pnpm@10.30.1",
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "dev": "vite",
     "build": "pnpm typecheck && vite build",
