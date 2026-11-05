@@ -1,0 +1,7 @@
+{
+  "name": "delta",
+  "description": "Second fake addon with coverage",
+  "codeql": "javascript-typescript",
+  "checks": ["delta-test"],
+  "coverage": { "flag": "delta", "paths": ["lib/**"], "uploads": 1 }
+}

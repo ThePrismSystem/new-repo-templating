@@ -1,0 +1,8 @@
+{
+  "name": "alpha",
+  "description": "Fake addon with coverage",
+  "common": ["shared"],
+  "codeql": "python",
+  "checks": ["alpha-lint", "alpha-test"],
+  "coverage": { "flag": "alpha", "paths": ["src/**"], "uploads": 2 }
+}

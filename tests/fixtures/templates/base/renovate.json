@@ -1,0 +1,5 @@
+{
+  "extends": ["config:recommended"],
+  "packageRules": [{ "description": "base rule" }],
+  "customManagers": [{ "description": "base manager" }]
+}

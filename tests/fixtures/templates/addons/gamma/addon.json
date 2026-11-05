@@ -1,0 +1,6 @@
+{
+  "name": "gamma",
+  "description": "Fake addon that conflicts with alpha",
+  "conflicts": ["alpha"],
+  "checks": ["gamma-lint"]
+}
