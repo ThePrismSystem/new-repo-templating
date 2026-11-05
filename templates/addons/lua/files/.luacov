@@ -1,0 +1,8 @@
+return {
+  include = { "^src/" },
+  -- Counts modules in src/ that no spec loads as uncovered.
+  includeuntestedfiles = { "src" },
+  statsfile = "coverage/luacov.stats.out",
+  reporter = "lcov",
+  reportfile = "coverage/lcov.info",
+}

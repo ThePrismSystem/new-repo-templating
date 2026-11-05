@@ -1,0 +1,3 @@
+# LuaRocks trees
+lua_modules/
+.luarocks/

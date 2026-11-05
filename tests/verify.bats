@@ -182,3 +182,34 @@ SH
   [ "$status" -ne 0 ]
   [[ "$output" == *"SC2086"* ]]
 }
+
+# bats test_tags=slow,addon:lua
+@test "lua lint rejects an accidental global" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-lua.sh lint
+  [ "$status" -eq 0 ]
+  printf 'local M = {}\n\nfunction M.count()\n  total = 1\n  return total\nend\n\nreturn M\n' >src/counter.lua
+  run scripts/check-lua.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"non-standard global variable 'total'"* ]]
+}
+
+# bats test_tags=slow,addon:lua
+@test "lua test counts a module no test loads against the floor" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-lua.sh test
+  [ "$status" -eq 0 ]
+  [ -f coverage/lcov.info ]
+  {
+    echo "local M = {}"
+    for i in $(seq 1 20); do
+      printf 'function M.f%d(x)\n  if x then\n    return %d\n  end\n  return -%d\nend\n' "$i" "$i" "$i"
+    done
+    echo "return M"
+  } >src/untested.lua
+  run scripts/check-lua.sh test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"floor 80%"* ]]
+}

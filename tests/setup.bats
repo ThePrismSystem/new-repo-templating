@@ -265,3 +265,34 @@ teardown() {
   run grep -c '# renovate:' "$WORK/proj/.github/workflows/shell.yml"
   [ "$output" -eq 3 ]
 }
+
+@test "lua scaffold has its workflow, config and check script" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/lua.yml" ]
+  [ -f "$WORK/proj/.luacheckrc" ]
+  [ -f "$WORK/proj/.luacov" ]
+  [ -x "$WORK/proj/scripts/check-lua.sh" ]
+  [ -x "$WORK/proj/scripts/lcov-floor.sh" ]
+  run jq -r '."runtime.version"' "$WORK/proj/.luarc.json"
+  [ "$output" = "Lua 5.4" ]
+}
+
+@test "lua scaffold lists its checks in the manifest" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("lua-") or . == "codecov/patch" or startswith("analyze"))]' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = '["lua-lint","lua-test","analyze (actions)","codecov/patch"]' ]
+}
+
+@test "lua scaffold's tool installs are all read by renovate" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua --no-install
+  [ "$status" -eq 0 ]
+  run node "$BATS_TEST_DIRNAME/helpers/unread-renovate-comments.js" "$WORK/proj/renovate.json" "$WORK/proj" \
+    "$WORK/proj"/.github/workflows/*.yml
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run grep -c '# renovate:' "$WORK/proj/.github/workflows/lua.yml"
+  [ "$output" -eq 5 ]
+}

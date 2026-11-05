@@ -1,0 +1,83 @@
+name: lua
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every job runs one step of scripts/check-lua.sh, so a local run checks the
+# same things.
+jobs:
+  lua-lint:
+    name: lua-lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
+        with:
+          luaVersion: "5.4"
+      - uses: leafo/gh-actions-luarocks@1c4a92caecc8f6850f673cbadfd57b3e555417ce # v6.1.1
+
+      - name: Install luacheck
+        run: |
+          # renovate: datasource=github-tags depName=lunarmodules/luacheck
+          luarocks install luacheck 1.2.0
+
+      - name: Install lua-language-server
+        env:
+          # renovate: datasource=github-release-attachments depName=LuaLS/lua-language-server
+          VERSION: 3.19.2
+          SHA256: 93ad326b10f6c00911dd8c450fa098332dbd8f9f45d1052f5636a2d54479b947
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o luals.tar.gz \
+            "https://github.com/LuaLS/lua-language-server/releases/download/${VERSION}/lua-language-server-${VERSION}-linux-x64.tar.gz"
+          echo "${SHA256}  luals.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/lua-language-server"
+          tar -xzf luals.tar.gz -C "$RUNNER_TEMP/lua-language-server"
+          rm luals.tar.gz
+          echo "$RUNNER_TEMP/lua-language-server/bin" >> "$GITHUB_PATH"
+
+      - run: scripts/check-lua.sh lint
+
+  lua-test:
+    name: lua-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
+        with:
+          luaVersion: "5.4"
+      - uses: leafo/gh-actions-luarocks@1c4a92caecc8f6850f673cbadfd57b3e555417ce # v6.1.1
+
+      - name: Install busted and luacov
+        run: |
+          # renovate: datasource=github-tags depName=lunarmodules/busted
+          luarocks install busted 2.3.0
+          # renovate: datasource=github-tags depName=lunarmodules/luacov
+          luarocks install luacov 0.17.0
+          # renovate: datasource=github-tags depName=daurnimator/luacov-reporter-lcov
+          luarocks install luacov-reporter-lcov 0.2
+
+      - run: scripts/check-lua.sh test
+      - name: Upload coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: lua
+          files: coverage/lcov.info
+          disable_search: true
+          fail_ci_if_error: true

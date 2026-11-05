@@ -45,7 +45,7 @@ jobs:
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        addon: [typescript-node, typescript-react, javascript, python, shell]
+        addon: [typescript-node, typescript-react, javascript, python, shell, lua]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -143,6 +143,41 @@ jobs:
           echo "${SHA256}  $RUNNER_TEMP/bin/shfmt" | sha256sum --check
           chmod +x "$RUNNER_TEMP/bin/shfmt"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
+        if: matrix.addon == 'lua'
+        with:
+          luaVersion: "5.4"
+
+      - uses: leafo/gh-actions-luarocks@1c4a92caecc8f6850f673cbadfd57b3e555417ce # v6.1.1
+        if: matrix.addon == 'lua'
+
+      - name: Install the Lua tools
+        if: matrix.addon == 'lua'
+        run: |
+          # renovate: datasource=github-tags depName=lunarmodules/luacheck
+          luarocks install luacheck 1.2.0
+          # renovate: datasource=github-tags depName=lunarmodules/busted
+          luarocks install busted 2.3.0
+          # renovate: datasource=github-tags depName=lunarmodules/luacov
+          luarocks install luacov 0.17.0
+          # renovate: datasource=github-tags depName=daurnimator/luacov-reporter-lcov
+          luarocks install luacov-reporter-lcov 0.2
+
+      - name: Install lua-language-server
+        if: matrix.addon == 'lua'
+        env:
+          # renovate: datasource=github-release-attachments depName=LuaLS/lua-language-server
+          VERSION: 3.19.2
+          SHA256: 93ad326b10f6c00911dd8c450fa098332dbd8f9f45d1052f5636a2d54479b947
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o luals.tar.gz \
+            "https://github.com/LuaLS/lua-language-server/releases/download/${VERSION}/lua-language-server-${VERSION}-linux-x64.tar.gz"
+          echo "${SHA256}  luals.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/lua-language-server"
+          tar -xzf luals.tar.gz -C "$RUNNER_TEMP/lua-language-server"
+          rm luals.tar.gz
+          echo "$RUNNER_TEMP/lua-language-server/bin" >> "$GITHUB_PATH"
 
       # The shell addon's own tests run on it inside verify.sh, and every
       # addon's slow tests run on it below.
