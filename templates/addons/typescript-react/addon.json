@@ -1,0 +1,31 @@
+{
+  "name": "typescript-react",
+  "description": "Vite and React single-page app in TypeScript",
+  "conflicts": [
+    "typescript-node",
+    "javascript"
+  ],
+  "common": [
+    "node"
+  ],
+  "codeql": "javascript-typescript",
+  "checks": [
+    "Lint",
+    "Typecheck",
+    "Unit Tests",
+    "Quality",
+    "Build"
+  ],
+  "coverage": {
+    "flag": "typescript",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 1
+  },
+  "setup": [
+    "pnpm install",
+    "pnpm exec prettier --log-level warn --write renovate.json .github/repo-standards.json",
+    "pnpm exec husky"
+  ]
+}

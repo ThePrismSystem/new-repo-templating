@@ -43,23 +43,29 @@ assert_visibility() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-AVAILABLE_FLAVORS=("typescript-node" "typescript-react")
+AVAILABLE_ADDONS=()
+for addon_path in "$SCRIPT_DIR"/templates/addons/*/; do
+  addon_path="${addon_path%/}"
+  AVAILABLE_ADDONS+=("${addon_path##*/}")
+done
+unset addon_path
 GATE_STEPS=("format" "lint" "typecheck" "__TEST__" "knip" "spell" "build")
 
 KEEP=false
 SKIP_AUDIT=false
-SELECTED_FLAVORS=()
+SELECTED_ADDONS=()
 WORKDIRS=()
 
 usage() {
   cat <<EOF
-Usage: $0 [--flavor typescript-node|typescript-react] [--keep] [--skip-audit]
+Usage: $0 [--addon <name>] [--keep] [--skip-audit]
 
-Scaffolds each template flavor into a temporary directory and runs the same
-gate the generated project's own CI runs.
+Scaffolds each addon into a temporary directory and runs the same gate the
+generated project's own CI runs.
 
 Options:
-  --flavor        Verify a single flavor (default: all flavors)
+  --addon         Verify a single addon (default: all addons)
+                  Available: ${AVAILABLE_ADDONS[*]}
   --keep          Leave scaffolds on disk for debugging instead of deleting
   --skip-audit    Skip 'pnpm audit' (use when blocked by an unfixable advisory)
   -h, --help      Show this help message
@@ -112,30 +118,30 @@ run_gate() {
   fi
 }
 
-verify_flavor() {
-  local flavor="$1"
+verify_addon() {
+  local addon="$1"
   local base
   base="$(mktemp -d)"
   WORKDIRS+=("$base")
 
-  echo "=== Verifying $flavor ==="
+  echo "=== Verifying $addon ==="
 
   # setup.sh refuses to write into an existing directory, so hand it a path
   # one level below the mktemp dir rather than the mktemp dir itself.
   echo "-- structural checks (private, no install)"
   "$SCRIPT_DIR/setup.sh" verify-private "$base/private" \
-    --flavor "$flavor" --visibility private --no-install >/dev/null
+    --addon "$addon" --visibility private --no-install >/dev/null
   assert_visibility "$base/private" private
   assert_no_placeholders "$base/private"
 
   echo "-- full gate (public, with install)"
   "$SCRIPT_DIR/setup.sh" verify-public "$base/public" \
-    --flavor "$flavor" --visibility public >/dev/null
+    --addon "$addon" --visibility public >/dev/null
   assert_visibility "$base/public" public
   assert_no_placeholders "$base/public"
   run_gate "$base/public"
 
-  echo "=== $flavor OK ==="
+  echo "=== $addon OK ==="
 }
 
 main() {
@@ -145,8 +151,8 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --flavor)
-        SELECTED_FLAVORS=("$2")
+      --addon)
+        SELECTED_ADDONS=("$2")
         shift 2
         ;;
       --keep)
@@ -169,26 +175,26 @@ main() {
     esac
   done
 
-  if (( ${#SELECTED_FLAVORS[@]} == 0 )); then
-    SELECTED_FLAVORS=("${AVAILABLE_FLAVORS[@]}")
+  if (( ${#SELECTED_ADDONS[@]} == 0 )); then
+    SELECTED_ADDONS=("${AVAILABLE_ADDONS[@]}")
   fi
 
-  local flavor
-  for flavor in "${SELECTED_FLAVORS[@]}"; do
-    if [[ ! -d "$SCRIPT_DIR/templates/$flavor" ]]; then
-      echo "Error: Unknown flavor '$flavor'" >&2
+  local addon
+  for addon in "${SELECTED_ADDONS[@]}"; do
+    if [[ ! -f "$SCRIPT_DIR/templates/addons/$addon/addon.json" ]]; then
+      echo "Error: Unknown addon '$addon'" >&2
       exit 1
     fi
   done
 
   trap cleanup EXIT
 
-  for flavor in "${SELECTED_FLAVORS[@]}"; do
-    verify_flavor "$flavor"
+  for addon in "${SELECTED_ADDONS[@]}"; do
+    verify_addon "$addon"
   done
 
   echo ""
-  echo "All flavors verified."
+  echo "All addons verified."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

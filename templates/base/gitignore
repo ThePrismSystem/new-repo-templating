@@ -1,13 +1,3 @@
-# Dependencies
-node_modules/
-.pnpm-store/
-
-# Build output
-dist/
-build/
-.next/
-out/
-
 # IDE
 .idea/
 .vscode/
@@ -25,7 +15,6 @@ out/
 
 # Testing
 coverage/
-.nyc_output/
 test-results/
 
 # Agent config (per-contributor)

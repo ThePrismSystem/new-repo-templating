@@ -36,14 +36,14 @@ jobs:
         run: bats tests/
 
   verify:
-    name: Verify ${{ matrix.flavor }}
+    name: Verify ${{ matrix.addon }}
     runs-on: ubuntu-latest
     strategy:
-      # Report every flavor's result. On a drift run the second flavor's
+      # Report every addon's result. On a drift run the second addon's
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        flavor: [typescript-node, typescript-react]
+        addon: [typescript-node, typescript-react]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -55,9 +55,9 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version-file: templates/${{ matrix.flavor }}/.nvmrc
+          node-version-file: templates/addons/${{ matrix.addon }}/files/.nvmrc
           # No pnpm cache: this repo has no lockfile, and caching resolution
           # would blunt the upstream drift the scheduled run exists to catch.
 
-      - name: Verify flavor
-        run: ./verify.sh --flavor ${{ matrix.flavor }}
+      - name: Verify addon
+        run: ./verify.sh --addon ${{ matrix.addon }}

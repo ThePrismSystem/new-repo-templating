@@ -91,8 +91,8 @@ JSON
   [[ "$output" == *"--skip-audit"* ]]
 }
 
-@test "unknown flavor is rejected" {
-  run "$REPO_ROOT/verify.sh" --flavor typescript-cobol
+@test "unknown addon is rejected" {
+  run "$REPO_ROOT/verify.sh" --addon typescript-cobol
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Unknown flavor"* ]]
+  [[ "$output" == *"Unknown addon"* ]]
 }

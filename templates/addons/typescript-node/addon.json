@@ -1,0 +1,30 @@
+{
+  "name": "typescript-node",
+  "description": "Node.js backend, CLI or library in TypeScript",
+  "conflicts": [
+    "typescript-react",
+    "javascript"
+  ],
+  "common": [
+    "node"
+  ],
+  "codeql": "javascript-typescript",
+  "checks": [
+    "Lint",
+    "Typecheck",
+    "Unit Tests",
+    "Quality"
+  ],
+  "coverage": {
+    "flag": "typescript",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 1
+  },
+  "setup": [
+    "pnpm install",
+    "pnpm exec prettier --log-level warn --write renovate.json .github/repo-standards.json",
+    "pnpm exec husky"
+  ]
+}
