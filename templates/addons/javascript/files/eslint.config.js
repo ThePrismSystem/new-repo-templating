@@ -1,3 +1,6 @@
+import { fileURLToPath } from "node:url";
+
+import { includeIgnoreFile } from "@eslint/compat";
 import commentsPlugin from "@eslint-community/eslint-plugin-eslint-comments/configs";
 import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
@@ -43,6 +46,8 @@ export const jxa = {
 };
 
 export default [
+  // Skip what git ignores, such as a Python virtual environment in a stacked repo.
+  includeIgnoreFile(fileURLToPath(new URL(".gitignore", import.meta.url))),
   {
     ignores: ["**/coverage/**", "**/node_modules/**"],
   },

@@ -20,6 +20,7 @@
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
+    "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
     "cspell": "^10.4.0",
     "eslint": "^10.14.0",

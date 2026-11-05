@@ -182,3 +182,170 @@ SH
   [ "$status" -ne 0 ]
   [[ "$output" == *"SC2086"* ]]
 }
+
+# bats test_tags=slow,addon:lua
+@test "lua lint rejects an accidental global" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-lua.sh lint
+  [ "$status" -eq 0 ]
+  printf 'local M = {}\n\nfunction M.count()\n  total = 1\n  return total\nend\n\nreturn M\n' >src/counter.lua
+  run scripts/check-lua.sh lint
+  [ "$status" -ne 0 ]
+  # luacheck colors the variable name, so match around it.
+  [[ "$output" == *"src/counter.lua"*"non-standard global variable"*"total"* ]]
+}
+
+# bats test_tags=slow,addon:lua
+@test "lua test counts a module no test loads against the floor" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon lua >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-lua.sh test
+  [ "$status" -eq 0 ]
+  [ -f coverage/lua-lcov.info ]
+  {
+    echo "local M = {}"
+    for i in $(seq 1 20); do
+      printf 'function M.f%d(x)\n  if x then\n    return %d\n  end\n  return -%d\nend\n' "$i" "$i" "$i"
+    done
+    echo "return M"
+  } >src/untested.lua
+  run scripts/check-lua.sh test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"floor 80%"* ]]
+}
+
+# bats test_tags=slow,addon:powershell
+@test "powershell lint rejects Invoke-Expression on input, with InjectionHunter's rule" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-powershell.sh lint
+  [ "$status" -eq 0 ]
+  cat >src/Run.ps1 <<'PS1'
+function Invoke-UserCommand {
+    param([string] $UserInput)
+    Invoke-Expression $UserInput
+}
+PS1
+  run scripts/check-powershell.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"InjectionRisk.InvokeExpression"* ]]
+}
+
+# bats test_tags=slow,addon:powershell
+@test "powershell lint writes its findings as SARIF when SARIF_DIR is set" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  printf "function Invoke-UserCommand {\n    param([string] \$UserInput)\n    Invoke-Expression \$UserInput\n}\n" >src/Run.ps1
+  SARIF_DIR=sarif run scripts/check-powershell.sh lint
+  [ "$status" -ne 0 ]
+  run jq -r '.version, .runs[0].tool.driver.name, ([.runs[0].results[] | select(.ruleId == "InjectionRisk.InvokeExpression") | .locations[0].physicalLocation | "\(.artifactLocation.uri):\(.region.startLine)"] | first)' \
+    sarif/powershell.sarif
+  [ "$output" = "$(printf '2.1.0\nPSScriptAnalyzer\nsrc/Run.ps1:3')" ]
+}
+
+# bats test_tags=slow,addon:powershell
+@test "powershell test counts a module no test loads against the floor" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-powershell.sh test
+  [ "$status" -eq 0 ]
+  [ -f coverage/powershell.xml ]
+  for i in $(seq 1 20); do
+    printf "function Get-Value%d {\n    param([bool] \$Flag)\n    if (\$Flag) {\n        return %d\n    }\n    return -%d\n}\n\n" "$i" "$i" "$i"
+  done >src/Untested.psm1
+  run scripts/check-powershell.sh test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"under the 80% floor"* ]]
+}
+
+# bats test_tags=slow,addon:docker
+@test "docker lint rejects an unpinned latest base image" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-docker.sh lint
+  [ "$status" -eq 0 ]
+  sed -E 's/^FROM .*/FROM ubuntu:latest/' Dockerfile >Dockerfile.new
+  mv Dockerfile.new Dockerfile
+  run scripts/check-docker.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"DL3007"* ]]
+}
+
+COMBO=(python lua powershell javascript)
+
+combo_scaffold() {
+  local args=() addon
+  for addon in "${COMBO[@]}"; do
+    args+=(--addon "$addon")
+  done
+  "$REPO_ROOT/setup.sh" demo "$WORK/combo" "${args[@]}" --no-install >/dev/null
+}
+
+@test "combo scaffold merges every addon's renovate rules and gitignore" {
+  combo_scaffold
+  local rules managers addon fragment
+  rules="$(jq '.packageRules | length' "$REPO_ROOT/templates/base/renovate.json")"
+  managers="$(jq '.customManagers | length' "$REPO_ROOT/templates/base/renovate.json")"
+  for addon in "${COMBO[@]}"; do
+    fragment="$REPO_ROOT/templates/addons/$addon/renovate.json"
+    if [[ -f "$fragment" ]]; then
+      rules=$((rules + $(jq '.packageRules // [] | length' "$fragment")))
+      managers=$((managers + $(jq '.customManagers // [] | length' "$fragment")))
+    fi
+  done
+  [ "$(jq '.packageRules | length' "$WORK/combo/renovate.json")" -eq "$rules" ]
+  [ "$(jq '.customManagers | length' "$WORK/combo/renovate.json")" -eq "$managers" ]
+  for addon in "${COMBO[@]}"; do
+    if [[ -f "$REPO_ROOT/templates/addons/$addon/gitignore" ]]; then
+      [ "$(grep -c "^# $addon\$" "$WORK/combo/.gitignore")" -eq 1 ]
+    fi
+  done
+}
+
+@test "combo manifest lists codecov/patch once" {
+  combo_scaffold
+  run jq '[.requiredChecks[] | select(.context == "codecov/patch")] | length' "$WORK/combo/.github/repo-standards.json"
+  [ "$output" -eq 1 ]
+  run grep -E 'after_n_builds: [0-9]+' "$WORK/combo/codecov.yml"
+  # python, lua and javascript upload once each; powershell once per OS.
+  [[ "$output" == *"after_n_builds: 5"* ]]
+}
+
+@test "combo scaffold's coverage uploads each read their own file" {
+  combo_scaffold
+  local files
+  files="$(grep -h -A8 'codecov/codecov-action' "$WORK/combo"/.github/workflows/*.yml | sed -n 's/^ *files: //p')"
+  [ "$(wc -l <<<"$files")" -eq 4 ]
+  [ "$(sort -u <<<"$files" | wc -l)" -eq 4 ]
+}
+
+@test "--combo rejects an unknown addon" {
+  run "$REPO_ROOT/verify.sh" --combo python,typescript-cobol
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Unknown addon 'typescript-cobol'"* ]]
+}
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint skips files git ignores" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  # A python .venv is the usual case; any path .gitignore lists works the same.
+  printf 'vendor/\n' >>.gitignore
+  mkdir -p vendor
+  printf 'var leftover = 1\n' >vendor/vendored.js
+  run pnpm lint
+  [ "$status" -eq 0 ]
+}
+
+# bats test_tags=slow,addon:typescript-node
+@test "typescript lint skips files git ignores" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node >/dev/null
+  cd "$WORK/proj" || return 1
+  # A python .venv is the usual case; any path .gitignore lists works the same.
+  printf 'vendor/\n' >>.gitignore
+  mkdir -p vendor
+  printf 'var leftover = 1\n' >vendor/vendored.js
+  run pnpm lint
+  [ "$status" -eq 0 ]
+}

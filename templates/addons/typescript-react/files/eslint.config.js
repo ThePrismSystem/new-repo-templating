@@ -1,3 +1,6 @@
+import { fileURLToPath } from "node:url";
+
+import { includeIgnoreFile } from "@eslint/compat";
 import eslintCommentsPlugin from "@eslint-community/eslint-plugin-eslint-comments/configs";
 import eslintConfigPrettier from "eslint-config-prettier";
 import importPlugin from "eslint-plugin-import-x";
@@ -7,6 +10,8 @@ import unicornPlugin from "eslint-plugin-unicorn";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
+  // Skip what git ignores, such as a Python virtual environment in a stacked repo.
+  includeIgnoreFile(fileURLToPath(new URL(".gitignore", import.meta.url))),
   {
     ignores: [
       "**/dist/**",

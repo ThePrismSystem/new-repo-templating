@@ -1,0 +1,97 @@
+name: docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every job runs one step of scripts/check-docker.sh, so a local run checks
+# the same things. hadolint and Trivy come from their release downloads,
+# checked by SHA-256.
+jobs:
+  docker-lint:
+    name: docker-lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install hadolint
+        env:
+          # renovate: datasource=github-release-attachments depName=hadolint/hadolint
+          VERSION: v2.15.1
+          SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/bin/hadolint" \
+            "https://github.com/hadolint/hadolint/releases/download/${VERSION}/hadolint-linux-x86_64"
+          echo "${SHA256}  $RUNNER_TEMP/bin/hadolint" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/bin/hadolint"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install Trivy
+        env:
+          # renovate: datasource=github-release-attachments depName=aquasecurity/trivy
+          VERSION: v0.76.2
+          SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/${VERSION}/trivy_${VERSION#v}_Linux-64bit.tar.gz"
+          echo "${SHA256}  trivy.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf trivy.tar.gz -C "$RUNNER_TEMP/bin" trivy
+          rm trivy.tar.gz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - run: scripts/check-docker.sh lint
+
+  docker-scan:
+    name: docker-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # >>> public
+      security-events: write # to upload the SARIF results to code scanning
+      # <<< public
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        env:
+          # renovate: datasource=github-release-attachments depName=aquasecurity/trivy
+          VERSION: v0.76.2
+          SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o trivy.tar.gz \
+            "https://github.com/aquasecurity/trivy/releases/download/${VERSION}/trivy_${VERSION#v}_Linux-64bit.tar.gz"
+          echo "${SHA256}  trivy.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf trivy.tar.gz -C "$RUNNER_TEMP/bin" trivy
+          rm trivy.tar.gz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Build and scan the image
+        env:
+          SARIF_DIR: sarif
+        run: scripts/check-docker.sh scan
+
+      # >>> public
+      # A pull request from a fork gets a token that can't write to code scanning.
+      - name: Upload Trivy results
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/trivy-image.sarif
+          category: trivy-image
+      # <<< public

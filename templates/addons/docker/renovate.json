@@ -1,0 +1,9 @@
+{
+  "packageRules": [
+    {
+      "description": "Base images stay pinned by digest. Renovate moves the tag and the digest together, and pins any new FROM line it finds.",
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "docker",
+  "description": "A container image, linted with hadolint and scanned with Trivy",
+  "checks": [
+    "docker-lint",
+    "docker-scan"
+  ],
+  "check": "scripts/check-docker.sh"
+}

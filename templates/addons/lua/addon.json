@@ -1,0 +1,16 @@
+{
+  "name": "lua",
+  "description": "Lua 5.4 modules and scripts, tested with busted",
+  "checks": [
+    "lua-lint",
+    "lua-test"
+  ],
+  "coverage": {
+    "flag": "lua",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 1
+  },
+  "check": "scripts/check-lua.sh"
+}

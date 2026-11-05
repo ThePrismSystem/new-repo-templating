@@ -53,11 +53,12 @@ unset addon_path
 KEEP=false
 SKIP_AUDIT=false
 SELECTED_ADDONS=()
+COMBO_ADDONS=()
 WORKDIRS=()
 
 usage() {
   cat <<EOF
-Usage: $0 [--addon <name>] [--keep] [--skip-audit]
+Usage: $0 [--addon <name> | --combo <name,name,...>] [--keep] [--skip-audit]
 
 Scaffolds each addon into a temporary directory and runs the same gate the
 generated project's own CI runs.
@@ -65,6 +66,7 @@ generated project's own CI runs.
 Options:
   --addon         Verify a single addon (default: all addons)
                   Available: ${AVAILABLE_ADDONS[*]}
+  --combo         Verify one scaffold with these addons stacked together
   --keep          Leave scaffolds on disk for debugging instead of deleting
   --skip-audit    Skip dependency audits (use when blocked by an unfixable advisory)
   -h, --help      Show this help message
@@ -123,31 +125,36 @@ run_base_gate() {
   )
 }
 
-verify_addon() {
-  local addon="$1"
-  local base
+# Verifies one scaffold built from the given addons, named by <label>.
+verify_scaffold() {
+  local label="$1"
+  shift
+  local base addon args=()
   base="$(mktemp -d)"
   WORKDIRS+=("$base")
+  for addon in "$@"; do
+    args+=(--addon "$addon")
+  done
 
-  echo "=== Verifying $addon ==="
+  echo "=== Verifying $label ==="
 
   # setup.sh refuses to write into an existing directory, so hand it a path
   # one level below the mktemp dir rather than the mktemp dir itself.
   echo "-- structural checks (private, no install)"
   "$SCRIPT_DIR/setup.sh" verify-private "$base/private" \
-    --addon "$addon" --visibility private --no-install >/dev/null
+    "${args[@]}" --visibility private --no-install >/dev/null
   assert_visibility "$base/private" private
   assert_no_placeholders "$base/private"
 
   echo "-- full gate (public, with install)"
   "$SCRIPT_DIR/setup.sh" verify-public "$base/public" \
-    --addon "$addon" --visibility public >/dev/null
+    "${args[@]}" --visibility public >/dev/null
   assert_visibility "$base/public" public
   assert_no_placeholders "$base/public"
   run_gate "$base/public"
   run_base_gate "$base/public"
 
-  echo "=== $addon OK ==="
+  echo "=== $label OK ==="
 }
 
 main() {
@@ -159,6 +166,10 @@ main() {
     case "$1" in
       --addon)
         SELECTED_ADDONS=("$2")
+        shift 2
+        ;;
+      --combo)
+        IFS=, read -r -a COMBO_ADDONS <<<"$2"
         shift 2
         ;;
       --keep)
@@ -181,12 +192,12 @@ main() {
     esac
   done
 
-  if (( ${#SELECTED_ADDONS[@]} == 0 )); then
+  if (( ${#SELECTED_ADDONS[@]} == 0 && ${#COMBO_ADDONS[@]} == 0 )); then
     SELECTED_ADDONS=("${AVAILABLE_ADDONS[@]}")
   fi
 
   local addon
-  for addon in "${SELECTED_ADDONS[@]}"; do
+  for addon in "${SELECTED_ADDONS[@]}" "${COMBO_ADDONS[@]}"; do
     if [[ ! -f "$SCRIPT_DIR/templates/addons/$addon/addon.json" ]]; then
       echo "Error: Unknown addon '$addon'" >&2
       exit 1
@@ -196,8 +207,11 @@ main() {
   trap cleanup EXIT
 
   for addon in "${SELECTED_ADDONS[@]}"; do
-    verify_addon "$addon"
+    verify_scaffold "$addon" "$addon"
   done
+  if (( ${#COMBO_ADDONS[@]} > 0 )); then
+    verify_scaffold "combo (${COMBO_ADDONS[*]})" "${COMBO_ADDONS[@]}"
+  fi
 
   echo ""
   echo "All addons verified."
