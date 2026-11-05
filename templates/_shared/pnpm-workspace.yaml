@@ -1,0 +1,17 @@
+# pnpm settings. pnpm 11 and later read these here and ignore them in .npmrc.
+
+autoInstallPeers: true
+
+# pnpm fails the install when a dependency's build script has been neither
+# allowed nor denied. esbuild's postinstall checks its platform binary.
+allowBuilds:
+  esbuild: true
+
+auditConfig:
+  ignoreGhsas:
+    # minimatch below 11.0.1: denial of service from a crafted glob pattern.
+    # Only the lint tooling pulls it in, and the patterns it matches come from
+    # this project's own config. It can't be overridden away yet:
+    # eslint-plugin-import-x calls makeRe, which minimatch 11 removed. Remove
+    # this entry once import-x accepts minimatch 11.
+    - GHSA-g3hv-75wg-m249
