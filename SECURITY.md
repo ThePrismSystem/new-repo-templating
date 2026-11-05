@@ -12,11 +12,15 @@ Do not open a public issue. Issues are disabled on this repository.
 
 In scope:
 
-- `setup.sh` and `verify.sh` — argument handling, placeholder substitution,
-  anything that could execute untrusted input during scaffolding
+- `setup.sh` and `verify.sh`: argument handling, placeholder substitution, and
+  anything that could run untrusted input during scaffolding
+- `apply-settings.sh` and `lib/`: anything that could apply weaker settings or
+  rulesets than the manifest asks for, or report success when a change failed
+- The check scripts under `templates/**/scripts/`, which run in every generated
+  project's CI and on its developers' machines
 - The workflow files under `.github/workflows/` and `templates/**/.github/workflows/`
-- Template configuration that would cause a generated project to ship an
-  insecure default
+- Template configuration that would make a generated project ship an insecure
+  default
 
 Out of scope:
 

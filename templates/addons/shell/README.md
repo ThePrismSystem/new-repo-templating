@@ -28,6 +28,9 @@ and every job is a required check.
 | `lint` | `shell-lint` | shellcheck, `shfmt -d` |
 | `test` | `shell-test` | `bats tests/` |
 
+To run only some tests, set `BATS_FILTER_TAGS` and the `test` step passes it to
+`bats --filter-tags`. `BATS_FILTER_TAGS='!slow'` leaves out tests tagged `slow`.
+
 ## In the generated project
 
 `shfmt -i 2 -ci -w <file>` fixes formatting. To check a sourced file that
