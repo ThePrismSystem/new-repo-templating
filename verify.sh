@@ -3,7 +3,7 @@
 # tests/verify.bats sources this file, and setting shell options at load time
 # would leak errexit and nounset into the bats test shell.
 
-PUBLIC_ONLY_WORKFLOWS=(".github/workflows/codeql.yml" ".github/workflows/gitleaks.yml")
+PUBLIC_ONLY_WORKFLOWS=(".github/workflows/codeql.yml" ".github/workflows/scorecard.yml")
 
 # Fails if setup.sh left any {{PLACEHOLDER}} unsubstituted in the scaffold.
 # grep exits 0 when it finds a match, which is the failure case here.
@@ -118,6 +118,20 @@ run_gate() {
   fi
 }
 
+# gitleaks reads history, so the scaffold gets one commit first. Hooks are
+# skipped: the gate below runs everything they would.
+run_base_gate() {
+  local dir="$1"
+  echo "  -> scripts/check-base.sh all"
+  (
+    cd "$dir"
+    git add -A
+    git -c user.name=verify -c user.email=verify@example.invalid \
+      commit -q --no-verify --no-gpg-sign -m "chore: initial scaffold"
+    scripts/check-base.sh all
+  )
+}
+
 verify_addon() {
   local addon="$1"
   local base
@@ -140,6 +154,7 @@ verify_addon() {
   assert_visibility "$base/public" public
   assert_no_placeholders "$base/public"
   run_gate "$base/public"
+  run_base_gate "$base/public"
 
   echo "=== $addon OK ==="
 }

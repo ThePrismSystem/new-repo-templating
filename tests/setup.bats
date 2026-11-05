@@ -25,19 +25,49 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
-@test "public visibility includes CodeQL and Gitleaks workflows" {
+@test "public visibility includes CodeQL and Scorecard workflows" {
   run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node --visibility public --no-install
   [ "$status" -eq 0 ]
   [ -f "$WORK/proj/.github/workflows/codeql.yml" ]
-  [ -f "$WORK/proj/.github/workflows/gitleaks.yml" ]
+  [ -f "$WORK/proj/.github/workflows/scorecard.yml" ]
+  [ -f "$WORK/proj/.github/workflows/lint.yml" ]
 }
 
-@test "private visibility omits CodeQL and Gitleaks workflows" {
+@test "private visibility omits CodeQL and Scorecard but keeps lint" {
   run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node --visibility private --no-install
   [ "$status" -eq 0 ]
   [ ! -f "$WORK/proj/.github/workflows/codeql.yml" ]
-  [ ! -f "$WORK/proj/.github/workflows/gitleaks.yml" ]
-  [ -f "$WORK/proj/.github/workflows/ci.yml" ]
+  [ ! -f "$WORK/proj/.github/workflows/scorecard.yml" ]
+  [ -f "$WORK/proj/.github/workflows/lint.yml" ]
+}
+
+@test "public scaffold uploads SARIF, private scaffold doesn't" {
+  run "$REPO_ROOT/setup.sh" pub "$WORK/pub" --visibility public --no-install
+  [ "$status" -eq 0 ]
+  run grep -c 'upload-sarif' "$WORK/pub/.github/workflows/lint.yml"
+  [ "$output" -ge 2 ]
+  run "$REPO_ROOT/setup.sh" priv "$WORK/priv" --visibility private --no-install
+  [ "$status" -eq 0 ]
+  run grep -rl 'upload-sarif\|security-events' "$WORK/priv/.github/workflows"
+  [ -z "$output" ]
+  run grep -rn '# >>> public\|# <<< public' "$WORK/priv" "$WORK/pub"
+  [ -z "$output" ]
+}
+
+@test "every action in a scaffold is pinned to a 40-char SHA" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node --no-install
+  [ "$status" -eq 0 ]
+  run bash -c "grep -rhE '^\s*(- )?uses: ' '$WORK/proj/.github/workflows' | grep -vE 'uses: [^@]+@[0-9a-f]{40} # v[0-9]'"
+  [ -z "$output" ]
+}
+
+@test "every workflow in a scaffold starts with empty permissions" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node --no-install
+  [ "$status" -eq 0 ]
+  local wf
+  for wf in "$WORK"/proj/.github/workflows/*.yml; do
+    grep -q '^permissions: {}$' "$wf"
+  done
 }
 
 @test "succeeds when USER is unset and gh is unauthenticated" {
@@ -121,6 +151,7 @@ teardown() {
   run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --visibility private --no-install
   [ "$status" -eq 0 ]
   [ ! -e "$WORK/proj/.github/workflows/codeql.yml" ]
+  [ ! -e "$WORK/proj/.github/codeql" ]
   run jq -r '.codeScanning' "$WORK/proj/.github/repo-standards.json"
   [ "$output" = "false" ]
 }

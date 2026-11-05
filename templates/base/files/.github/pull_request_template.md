@@ -1,19 +1,15 @@
-## Summary
+## What
 
-<!-- Brief description of what this PR does and why -->
+<!-- What changes when this merges, in present tense: "Adds", "Fixes", "Removes". -->
 
-## Changes
+## Why
 
--
+<!-- The problem this solves, and why now. -->
 
-## Test Plan
+## How to validate
 
-- [ ]
+<!-- Steps a reviewer can follow to see the change working. -->
 
-## Review Checklist
+## Related links
 
-- [ ] Tests pass locally
-- [ ] No breaking changes (or documented in summary)
-- [ ] Documentation updated if needed
-- [ ] Error handling considered
-- [ ] Security implications reviewed
+<!-- Issues, pull requests or docs that give context. Delete this section if there are none. -->

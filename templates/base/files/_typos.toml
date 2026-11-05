@@ -1,0 +1,3 @@
+[files]
+# Lockfiles are full of hashes and package names, not prose.
+extend-exclude = ["pnpm-lock.yaml", "package-lock.json", "*.lock"]

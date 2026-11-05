@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Command-line tools verify.sh needs that only ship on npm. The lockfile pins them; Renovate keeps them current.",
+  "devDependencies": {
+    "markdownlint-cli2": "0.24.0"
+  }
+}

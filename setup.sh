@@ -176,10 +176,17 @@ build_codecov "$TARGET_DIR/codecov.yml" "${ADDONS[@]}"
 write_manifest "$TARGET_DIR/.github/repo-standards.json" "$VISIBILITY" "${ADDONS[@]}"
 
 # --- Replace placeholders ---
+# Lines between "# >>> public" and "# <<< public" need code scanning, so a
+# private scaffold drops them; a public one keeps them without the markers.
+if [[ "$VISIBILITY" == "public" ]]; then
+  MARKER_EDIT='/# >>> public$/d; /# <<< public$/d'
+else
+  MARKER_EDIT='/# >>> public$/,/# <<< public$/d'
+fi
 find "$TARGET_DIR" -type f | while read -r file; do
   # Skip binary files (grep -qI returns false for binary)
   if grep -qI '' "$file" 2>/dev/null; then
-    sed -i \
+    sed -i -e "$MARKER_EDIT" \
       -e "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" \
       -e "s/{{GITHUB_OWNER}}/$GITHUB_OWNER/g" \
       -e "s/{{PROJECT_DESCRIPTION}}/$PROJECT_DESCRIPTION/g" \

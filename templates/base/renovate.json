@@ -1,21 +1,67 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
   "schedule": ["before 9am on monday"],
+  "minimumReleaseAge": "7 days",
   "prConcurrentLimit": 10,
+  "platformCommit": "enabled",
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "minimumReleaseAge": null
+  },
   "packageRules": [
     {
+      "description": "Non-major updates to development tools come as one PR a week, and GitHub merges it once every required check passes.",
+      "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["patch", "minor"],
-      "groupName": "dev dependencies (non-major)"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "development tools (non-major)",
+      "automerge": true,
+      "platformAutomerge": true
     },
     {
-      "matchUpdateTypes": ["patch"],
-      "automerge": true
+      "description": "Tools CI installs by command line or from a requirements file, grouped with the rest of the development tools.",
+      "matchManagers": ["pip_requirements", "custom.regex"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "development tools (non-major)",
+      "automerge": true,
+      "platformAutomerge": true
     },
     {
+      "description": "Actions run with the workflow's token, so a person reads every update before it merges.",
       "matchManagers": ["github-actions"],
-      "pinDigests": true
+      "groupName": "github actions",
+      "automerge": false
+    },
+    {
+      "description": "Runtime versions passed to setup actions change what CI tests on, so they're merged by hand.",
+      "matchDepTypes": ["uses-with"],
+      "groupName": "CI runtimes",
+      "automerge": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Tools the workflows install by command line. The comment on the line before says where each version comes from.",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?\\n[^\\n]*?(?:luarocks install \\S+ |Install-Module \\S+ -RequiredVersion |npm install --global --ignore-scripts [^@\\s]+@|pip install [^=\\s]+==)(?<currentValue>[^\\s\"']+)"
+      ],
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Tools downloaded from a GitHub release and checked against their SHA-256. Renovate reads the new hash from the release's checksums file, so the version and hash always change together.",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>github-release-attachments) depName=(?<depName>\\S+)\\s+VERSION: (?<currentValue>v?\\S+)\\s+SHA256: (?<currentDigest>[0-9a-f]{64})"
+      ]
     }
   ]
 }

@@ -3,3 +3,6 @@
 
 # Agent working docs (specs and plans, kept locally)
 docs/superpowers/
+
+# Tools verify.sh installs from tests/tools/package-lock.json
+tests/tools/node_modules/

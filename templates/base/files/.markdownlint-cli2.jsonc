@@ -1,0 +1,14 @@
+{
+  "config": {
+    // Prose isn't wrapped at a fixed width, and tables and links run long, so
+    // line length isn't checked.
+    "MD013": false,
+    // Table cells aren't padded to line up, which would only add churn.
+    "MD060": false,
+  },
+  // Files git ignores (node_modules, coverage, build output) are skipped.
+  "gitignore": true,
+  // The PR template is the body of a pull request, which opens on its first
+  // section heading rather than a title.
+  "ignores": [".github/pull_request_template.md"],
+}

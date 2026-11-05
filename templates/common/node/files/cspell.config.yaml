@@ -21,6 +21,8 @@ words:
   - codecov
   - dependabot
   - typecheck
+  # In renovate.json's custom manager for command-line installs.
+  - luarocks
 ignorePaths:
   - node_modules
   - dist

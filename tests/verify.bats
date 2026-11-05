@@ -36,7 +36,7 @@ teardown() {
 
 @test "assert_visibility passes when public scaffold has both workflows" {
   mkdir -p "$WORK/.github/workflows"
-  touch "$WORK/.github/workflows/codeql.yml" "$WORK/.github/workflows/gitleaks.yml"
+  touch "$WORK/.github/workflows/codeql.yml" "$WORK/.github/workflows/scorecard.yml"
   run assert_visibility "$WORK" public
   [ "$status" -eq 0 ]
 }
@@ -46,7 +46,7 @@ teardown() {
   touch "$WORK/.github/workflows/codeql.yml"
   run assert_visibility "$WORK" public
   [ "$status" -eq 1 ]
-  [[ "$output" == *"gitleaks.yml"* ]]
+  [[ "$output" == *"scorecard.yml"* ]]
 }
 
 @test "assert_visibility passes when private scaffold has neither workflow" {
