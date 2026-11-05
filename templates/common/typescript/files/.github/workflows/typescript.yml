@@ -1,10 +1,9 @@
-name: CI
+name: typescript
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
+  pull_request:
 
 permissions: {}
 
@@ -12,9 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job runs one step of scripts/check-typescript.sh, so a local run
+# checks the same things.
 jobs:
-  lint:
-    name: Lint
+  typescript-lint:
+    name: typescript-lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,27 +23,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
+      - run: scripts/check-typescript.sh lint
 
-      - name: Check formatting
-        run: pnpm format
-
-      - name: Lint (zero warnings)
-        run: pnpm lint
-
-      - name: Audit dependencies
-        run: pnpm audit --audit-level moderate
-
-  typecheck:
-    name: Typecheck
+  typescript-typecheck:
+    name: typescript-typecheck
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,21 +40,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
+      - run: scripts/check-typescript.sh typecheck
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-  test-unit:
-    name: Unit Tests
+  typescript-test:
+    name: typescript-test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,29 +57,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
-
-      - name: Run unit tests with coverage
-        run: pnpm test:unit:coverage
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - run: scripts/check-typescript.sh test
+      - name: Upload coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 14
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: typescript
+          files: coverage/lcov.info
+          disable_search: true
+          fail_ci_if_error: true
 
-  quality:
-    name: Quality
+  typescript-quality:
+    name: typescript-quality
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -102,18 +82,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
+      - run: scripts/check-typescript.sh quality
 
-      - name: Check for unused code
-        run: pnpm knip
-
-      - name: Spell check
-        run: pnpm spell
+  typescript-build:
+    name: typescript-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: scripts/check-typescript.sh build

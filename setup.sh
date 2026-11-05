@@ -124,12 +124,6 @@ fi
 # --- Resolve placeholders ---
 GITHUB_OWNER="$(gh api user -q .login 2>/dev/null || echo "${USER:-unknown}")"
 YEAR="$(date +%Y)"
-NODE_VERSION=""
-for addon in "${ADDONS[@]}"; do
-  if [[ -z "$NODE_VERSION" && -f "$(addon_dir "$addon")/files/.nvmrc" ]]; then
-    NODE_VERSION="$(cat "$(addon_dir "$addon")/files/.nvmrc")"
-  fi
-done
 if ((${#ADDONS[@]} > 0)); then
   PROJECT_DESCRIPTION="A new ${ADDONS[*]} project"
 else
@@ -191,7 +185,6 @@ find "$TARGET_DIR" -type f | while read -r file; do
       -e "s/{{GITHUB_OWNER}}/$GITHUB_OWNER/g" \
       -e "s/{{PROJECT_DESCRIPTION}}/$PROJECT_DESCRIPTION/g" \
       -e "s/{{YEAR}}/$YEAR/g" \
-      -e "s/{{NODE_VERSION}}/$NODE_VERSION/g" \
       -e "s/{{CODEQL_LANGUAGES}}/$CODEQL_LANGUAGES/g" \
       "$file"
   fi

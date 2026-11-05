@@ -49,7 +49,6 @@ for addon_path in "$SCRIPT_DIR"/templates/addons/*/; do
   AVAILABLE_ADDONS+=("${addon_path##*/}")
 done
 unset addon_path
-GATE_STEPS=("format" "lint" "typecheck" "__TEST__" "knip" "spell" "build")
 
 KEEP=false
 SKIP_AUDIT=false
@@ -67,7 +66,7 @@ Options:
   --addon         Verify a single addon (default: all addons)
                   Available: ${AVAILABLE_ADDONS[*]}
   --keep          Leave scaffolds on disk for debugging instead of deleting
-  --skip-audit    Skip 'pnpm audit' (use when blocked by an unfixable advisory)
+  --skip-audit    Skip dependency audits (use when blocked by an unfixable advisory)
   -h, --help      Show this help message
 EOF
 }
@@ -86,36 +85,28 @@ cleanup() {
   done
 }
 
-# The node flavor excludes integration tests from its coverage run; the react
-# flavor has no such split. Read the answer from the scaffold instead of
-# branching on flavor name, so a new flavor works without editing this.
-resolve_test_script() {
-  local dir="$1"
-  if jq -e '.scripts["test:unit:coverage"]' "$dir/package.json" >/dev/null 2>&1; then
-    echo "test:unit:coverage"
-  else
-    echo "test:coverage"
-  fi
-}
-
+# Runs the check script of every addon the scaffold was built with, the same
+# script each addon's CI jobs call one step at a time.
 run_gate() {
   local dir="$1"
-  local test_script
-  test_script="$(resolve_test_script "$dir")"
-
-  local step
-  for step in "${GATE_STEPS[@]}"; do
-    if [[ "$step" == "__TEST__" ]]; then
-      step="$test_script"
+  local addon check
+  while IFS= read -r addon; do
+    check="$(jq -r '.check // empty' "$SCRIPT_DIR/templates/addons/$addon/addon.json")"
+    if [[ -z "$check" ]]; then
+      echo "FAIL: addon '$addon' has no check script in addon.json" >&2
+      return 1
     fi
-    echo "  -> pnpm $step"
-    ( cd "$dir" && pnpm "$step" )
-  done
-
-  if [[ "$SKIP_AUDIT" == "false" ]]; then
-    echo "  -> pnpm audit"
-    ( cd "$dir" && pnpm audit --audit-level moderate )
-  fi
+    echo "  -> $check all"
+    (
+      cd "$dir"
+      if [[ "$SKIP_AUDIT" == "true" ]]; then
+        export SKIP_AUDIT=1
+      else
+        unset SKIP_AUDIT
+      fi
+      "$check" all
+    )
+  done < <(jq -r '.addons[]' "$dir/.github/repo-standards.json")
 }
 
 # gitleaks reads history, so the scaffold gets one commit first. Hooks are

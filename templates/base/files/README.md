@@ -4,9 +4,9 @@
 
 ## Development
 
-Every check CI runs has a script under `scripts/`. Before pushing, run
-`scripts/check-base.sh all`, then `scripts/check-<addon>.sh all` for each addon
-listed in `.github/repo-standards.json`.
+Every check CI runs comes from a script under `scripts/`, and each CI job runs
+one step of one script. Before pushing, run each script with `all`, starting
+with `scripts/check-base.sh all`.
 
 ## License
 

@@ -11,6 +11,7 @@ export default tseslint.config(
     ignores: [
       "**/dist/**",
       "**/build/**",
+      "**/coverage/**",
       "**/node_modules/**",
       "**/vite.config.ts",
       "**/test-setup.ts",

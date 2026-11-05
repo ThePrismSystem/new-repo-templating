@@ -6,14 +6,16 @@
     "javascript"
   ],
   "common": [
-    "node"
+    "node",
+    "typescript"
   ],
   "codeql": "javascript-typescript",
   "checks": [
-    "Lint",
-    "Typecheck",
-    "Unit Tests",
-    "Quality"
+    "typescript-lint",
+    "typescript-typecheck",
+    "typescript-test",
+    "typescript-quality",
+    "typescript-build"
   ],
   "coverage": {
     "flag": "typescript",
@@ -26,5 +28,6 @@
     "pnpm install",
     "pnpm exec prettier --log-level warn --write renovate.json .github/repo-standards.json",
     "pnpm exec husky"
-  ]
+  ],
+  "check": "scripts/check-typescript.sh"
 }

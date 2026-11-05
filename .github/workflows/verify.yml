@@ -30,10 +30,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
 
       - name: Shellcheck
-        run: shellcheck setup.sh verify.sh
+        run: shellcheck -x setup.sh verify.sh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh tests/*.bats
 
+      # Slow tests need an addon's toolchain, so each runs in that addon's
+      # verify job below.
       - name: Bats
-        run: bats tests/
+        run: bats --filter-tags '!slow' tests/
 
   verify:
     name: Verify ${{ matrix.addon }}
@@ -103,3 +105,9 @@ jobs:
 
       - name: Verify addon
         run: ./verify.sh --addon ${{ matrix.addon }}
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Slow tests for this addon
+        run: bats --filter-tags "slow,addon:${{ matrix.addon }}" tests/
