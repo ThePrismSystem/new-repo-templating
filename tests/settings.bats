@@ -257,3 +257,10 @@ writes() {
   apply
   [[ "$output" == *"Renovate"* && "$output" == *"Codecov"* ]]
 }
+
+@test "rejects a --visibility other than public or private" {
+  run "$REPO_ROOT/apply-settings.sh" o/r --addon shell --visibility pubic
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"--visibility must be 'public' or 'private'"* ]]
+  [ ! -s "$FAKE_GH_LOG" ]
+}

@@ -50,6 +50,9 @@ main() {
         ;;
       --visibility)
         visibility="$2"
+        if [[ "$visibility" != "public" && "$visibility" != "private" ]]; then
+          fail "--visibility must be 'public' or 'private'"
+        fi
         shift 2
         ;;
       --dry-run)
