@@ -23,6 +23,8 @@ words:
   - typecheck
   # In renovate.json's custom manager for command-line installs.
   - luarocks
+  # In the javascript addon's ESLint preset for JXA.
+  - osascript
 ignorePaths:
   - node_modules
   - dist

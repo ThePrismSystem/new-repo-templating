@@ -99,3 +99,37 @@ teardown() {
   run scripts/check-typescript.sh lint
   [ "$status" -eq 0 ]
 }
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint rejects let in a file under the es5Script preset" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-javascript.sh lint
+  [ "$status" -eq 0 ]
+  mkdir -p es5
+  printf 'var greeting = "hi";\nlet count = 1;\n' >es5/legacy.js
+  run scripts/check-javascript.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"es5/legacy.js"* ]]
+}
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint accepts a JXA run handler and the osascript globals" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  mkdir -p jxa
+  cat >jxa/notify.js <<'JXA'
+function run(argv) {
+  const app = Application.currentApplication();
+  app.includeStandardAdditions = true;
+  delay(0.1);
+  app.displayNotification(argv.join(" "), { withTitle: ObjC.unwrap($("demo")) });
+}
+JXA
+  run pnpm exec eslint jxa --max-warnings 0
+  [ "$status" -eq 0 ]
+  printf 'process.exit(1);\n' >jxa/node-only.js
+  run pnpm exec eslint jxa --max-warnings 0
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"'process' is not defined"* ]]
+}

@@ -187,3 +187,29 @@ teardown() {
   run grep -v -- '--retry 5 --retry-delay 10 --retry-all-errors' <<<"$downloads"
   [ "$status" -eq 1 ]
 }
+
+@test "javascript scaffold has its workflow, config and check script" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/javascript.yml" ]
+  [ -f "$WORK/proj/eslint.config.js" ]
+  [ -x "$WORK/proj/scripts/check-javascript.sh" ]
+  [ -f "$WORK/proj/commitlint.config.js" ]
+  run jq -r '.name' "$WORK/proj/package.json"
+  [ "$output" = "demo" ]
+}
+
+@test "javascript scaffold lists its checks in the manifest" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("javascript-") or . == "codecov/patch" or startswith("analyze"))]' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = '["javascript-lint","javascript-test","analyze (actions)","analyze (javascript-typescript)","codecov/patch"]' ]
+}
+
+@test "javascript can't be combined with a typescript addon" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript --addon typescript-node --no-install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"can't be combined"* ]]
+  [ ! -e "$WORK/proj" ]
+}
