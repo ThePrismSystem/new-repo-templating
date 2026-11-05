@@ -169,3 +169,21 @@ teardown() {
     jq -e --arg job "$job" '[.requiredChecks[].context] | index($job) != null' "$WORK/proj/.github/repo-standards.json" >/dev/null
   done
 }
+
+@test "ends by printing the repo create and apply-settings commands" {
+  run env GH_TOKEN= GH_CONFIG_DIR="$WORK" USER=someone \
+    "$REPO_ROOT/setup.sh" demo "$WORK/proj" --visibility private --no-install
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"gh repo create someone/demo --private --source . --push"* ]]
+  [[ "$output" == *"apply-settings.sh someone/demo"* ]]
+}
+
+@test "every release download in a scaffold retries with a fixed delay" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --no-install
+  [ "$status" -eq 0 ]
+  local downloads
+  downloads="$(grep -rh 'curl ' "$WORK/proj/.github/workflows")"
+  [ -n "$downloads" ]
+  run grep -v -- '--retry 5 --retry-delay 10 --retry-all-errors' <<<"$downloads"
+  [ "$status" -eq 1 ]
+}
