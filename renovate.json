@@ -43,6 +43,14 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>github-release-attachments) depName=(?<depName>\\S+)\\s+VERSION: (?<currentValue>v?\\S+)\\s+SHA256: (?<currentDigest>[0-9a-f]{64})"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Tools cloned at a git tag and checked against the tag's commit. Renovate moves the tag and the commit together.",
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>github-tags) depName=(?<depName>\\S+)\\s+VERSION: (?<currentValue>\\S+)\\s+COMMIT: (?<currentDigest>[0-9a-f]{40})"
+      ]
     }
   ]
 }

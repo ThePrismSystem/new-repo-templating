@@ -30,7 +30,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
 
       - name: Shellcheck
-        run: shellcheck -x setup.sh verify.sh apply-settings.sh tests/fixtures/fake-gh/gh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh tests/*.bats
+        run: shellcheck -x setup.sh verify.sh apply-settings.sh tests/fixtures/fake-gh/gh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh templates/addons/*/files/scripts/*.sh tests/*.bats
 
       # Slow tests need an addon's toolchain, so each runs in that addon's
       # verify job below.
@@ -45,7 +45,7 @@ jobs:
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        addon: [typescript-node, typescript-react]
+        addon: [typescript-node, typescript-react, javascript, python, shell]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -55,9 +55,20 @@ jobs:
         with:
           version: 12
 
+      # Node addons run on their own .nvmrc. The others still need Node for
+      # markdownlint, so they take the one this repo's test tools use.
+      - name: Pick the Node version
+        id: node
+        env:
+          ADDON: ${{ matrix.addon }}
+        run: |
+          file="templates/addons/$ADDON/files/.nvmrc"
+          [[ -f "$file" ]] || file=tests/tools/.nvmrc
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version-file: templates/addons/${{ matrix.addon }}/files/.nvmrc
+          node-version-file: ${{ steps.node.outputs.file }}
           # No pnpm cache: this repo has no lockfile, and caching resolution
           # would blunt the upstream drift the scheduled run exists to catch.
 
@@ -103,11 +114,43 @@ jobs:
           rm actionlint.tar.gz
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Verify addon
-        run: ./verify.sh --addon ${{ matrix.addon }}
+      # The runner's own shellcheck is older than the one the shell addon pins.
+      - name: Install shellcheck
+        if: matrix.addon == 'shell'
+        env:
+          # renovate: datasource=github-release-attachments depName=koalaman/shellcheck
+          VERSION: v0.11.0
+          SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/${VERSION}/shellcheck-${VERSION}.linux.x86_64.tar.xz"
+          echo "${SHA256}  shellcheck.tar.xz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xJf shellcheck.tar.xz -C "$RUNNER_TEMP/bin" --strip-components 1 "shellcheck-${VERSION}/shellcheck"
+          rm shellcheck.tar.xz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
+      - name: Install shfmt
+        if: matrix.addon == 'shell'
+        env:
+          # renovate: datasource=github-release-attachments depName=mvdan/sh
+          VERSION: v3.14.1
+          SHA256: 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/bin/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/${VERSION}/shfmt_${VERSION}_linux_amd64"
+          echo "${SHA256}  $RUNNER_TEMP/bin/shfmt" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/bin/shfmt"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # The shell addon's own tests run on it inside verify.sh, and every
+      # addon's slow tests run on it below.
       - name: Install bats
         run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Verify addon
+        run: ./verify.sh --addon ${{ matrix.addon }}
 
       - name: Slow tests for this addon
         run: bats --filter-tags "slow,addon:${{ matrix.addon }}" tests/

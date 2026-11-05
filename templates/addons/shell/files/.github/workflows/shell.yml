@@ -1,0 +1,80 @@
+name: shell
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every job runs one step of scripts/check-shell.sh, so a local run checks the
+# same things.
+jobs:
+  shell-lint:
+    name: shell-lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install shellcheck
+        env:
+          # renovate: datasource=github-release-attachments depName=koalaman/shellcheck
+          VERSION: v0.11.0
+          SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+        run: |
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/${VERSION}/shellcheck-${VERSION}.linux.x86_64.tar.xz"
+          echo "${SHA256}  shellcheck.tar.xz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xJf shellcheck.tar.xz -C "$RUNNER_TEMP/bin" --strip-components 1 "shellcheck-${VERSION}/shellcheck"
+          rm shellcheck.tar.xz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install shfmt
+        env:
+          # renovate: datasource=github-release-attachments depName=mvdan/sh
+          VERSION: v3.14.1
+          SHA256: 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSfL --retry 5 --retry-delay 10 --retry-all-errors -o "$RUNNER_TEMP/bin/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/${VERSION}/shfmt_${VERSION}_linux_amd64"
+          echo "${SHA256}  $RUNNER_TEMP/bin/shfmt" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/bin/shfmt"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - run: scripts/check-shell.sh lint
+
+  shell-test:
+    name: shell-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # bats publishes no release files, so the tag is cloned and checked
+      # against the commit it pointed to when this was pinned.
+      - name: Install bats
+        env:
+          # renovate: datasource=github-tags depName=bats-core/bats-core
+          VERSION: v1.14.0
+          COMMIT: eb7f42f8d608ac693d7a4b67474f6714ea68cfc5
+        run: |
+          git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$VERSION" \
+            https://github.com/bats-core/bats-core.git "$RUNNER_TEMP/bats-core"
+          test "$(git -C "$RUNNER_TEMP/bats-core" rev-parse HEAD)" = "$COMMIT"
+          "$RUNNER_TEMP/bats-core/install.sh" "$RUNNER_TEMP/bats"
+          echo "$RUNNER_TEMP/bats/bin" >> "$GITHUB_PATH"
+
+      - run: scripts/check-shell.sh test

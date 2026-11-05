@@ -1,0 +1,9 @@
+{
+  "name": "shell",
+  "description": "Bash scripts, linted with shellcheck and shfmt and tested with bats",
+  "checks": [
+    "shell-lint",
+    "shell-test"
+  ],
+  "check": "scripts/check-shell.sh"
+}

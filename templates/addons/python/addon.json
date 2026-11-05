@@ -1,0 +1,21 @@
+{
+  "name": "python",
+  "description": "Python 3.13 modules and scripts, tested with unittest",
+  "codeql": "python",
+  "checks": [
+    "python-lint",
+    "python-test"
+  ],
+  "coverage": {
+    "flag": "python",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 1
+  },
+  "setup": [
+    "python3 -m venv .venv",
+    ".venv/bin/python -m pip install --quiet --require-hashes -r requirements-dev.txt"
+  ],
+  "check": "scripts/check-python.sh"
+}

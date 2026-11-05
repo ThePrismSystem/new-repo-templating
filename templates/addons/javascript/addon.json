@@ -1,0 +1,29 @@
+{
+  "name": "javascript",
+  "description": "Plain JavaScript on Node.js, with ESLint presets for ES5 scripts and JXA",
+  "conflicts": [
+    "typescript-node",
+    "typescript-react"
+  ],
+  "common": [
+    "node"
+  ],
+  "codeql": "javascript-typescript",
+  "checks": [
+    "javascript-lint",
+    "javascript-test"
+  ],
+  "coverage": {
+    "flag": "javascript",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 1
+  },
+  "setup": [
+    "pnpm install",
+    "pnpm exec prettier --log-level warn --write renovate.json .github/repo-standards.json",
+    "pnpm exec husky"
+  ],
+  "check": "scripts/check-javascript.sh"
+}

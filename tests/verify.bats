@@ -34,6 +34,13 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
+@test "assert_no_placeholders ignores a Python virtual environment" {
+  mkdir -p "$WORK/.venv/lib"
+  echo "{{{NRAND}}}" > "$WORK/.venv/lib/sqldata.py"
+  run assert_no_placeholders "$WORK"
+  [ "$status" -eq 0 ]
+}
+
 @test "assert_visibility passes when public scaffold has both workflows" {
   mkdir -p "$WORK/.github/workflows"
   touch "$WORK/.github/workflows/codeql.yml" "$WORK/.github/workflows/scorecard.yml"
@@ -98,4 +105,80 @@ teardown() {
   [ -d coverage ]
   run scripts/check-typescript.sh lint
   [ "$status" -eq 0 ]
+}
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint rejects let in a file under the es5Script preset" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-javascript.sh lint
+  [ "$status" -eq 0 ]
+  mkdir -p es5
+  printf 'var greeting = "hi";\nlet count = 1;\n' >es5/legacy.js
+  run scripts/check-javascript.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"es5/legacy.js"* ]]
+}
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint accepts a JXA run handler and the osascript globals" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  mkdir -p jxa
+  cat >jxa/notify.js <<'JXA'
+function run(argv) {
+  const app = Application.currentApplication();
+  app.includeStandardAdditions = true;
+  delay(0.1);
+  app.displayNotification(argv.join(" "), { withTitle: ObjC.unwrap($("demo")) });
+}
+JXA
+  run pnpm exec eslint jxa --max-warnings 0
+  [ "$status" -eq 0 ]
+  printf 'process.exit(1);\n' >jxa/node-only.js
+  run pnpm exec eslint jxa --max-warnings 0
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"'process' is not defined"* ]]
+}
+
+# bats test_tags=slow,addon:python
+@test "python lint rejects subprocess with shell=True" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon python >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-python.sh lint
+  [ "$status" -eq 0 ]
+  printf 'import subprocess\n\n\ndef run(cmd):\n    return subprocess.call(cmd, shell=True)\n' >src/run.py
+  run scripts/check-python.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"S602"* ]]
+}
+
+# bats test_tags=slow,addon:python
+@test "python test counts a module no test imports against the floor" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon python >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-python.sh test
+  [ "$status" -eq 0 ]
+  [ -f coverage/python.xml ]
+  python3 -I -c 'print("\n".join(f"def f{i}(x):\n    if x:\n        return {i}\n    return -{i}\n\n" for i in range(20)))' >src/untested.py
+  run scripts/check-python.sh test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"untested.py"* ]]
+}
+
+# bats test_tags=slow,addon:shell
+@test "shell lint rejects an unquoted variable in a starter script" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon shell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-shell.sh lint
+  [ "$status" -eq 0 ]
+  cat >>src/greet.sh <<'SH'
+
+shout() {
+  echo $1
+}
+SH
+  run scripts/check-shell.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"SC2086"* ]]
 }

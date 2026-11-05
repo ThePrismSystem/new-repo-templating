@@ -1,0 +1,11 @@
+[run]
+branch = True
+# Measuring the whole directory counts modules no test imports.
+source = src
+
+[report]
+fail_under = 80
+show_missing = True
+
+[xml]
+output = coverage/python.xml
