@@ -177,3 +177,13 @@ teardown() {
   [[ "$output" == *"gh repo create someone/demo --private --source . --push"* ]]
   [[ "$output" == *"apply-settings.sh someone/demo"* ]]
 }
+
+@test "every release download in a scaffold retries with a fixed delay" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --no-install
+  [ "$status" -eq 0 ]
+  local downloads
+  downloads="$(grep -rh 'curl ' "$WORK/proj/.github/workflows")"
+  [ -n "$downloads" ]
+  run grep -v -- '--retry 5 --retry-delay 10 --retry-all-errors' <<<"$downloads"
+  [ "$status" -eq 1 ]
+}
