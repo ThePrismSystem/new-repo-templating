@@ -30,7 +30,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
 
       - name: Shellcheck
-        run: shellcheck -x setup.sh verify.sh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh tests/*.bats
+        run: shellcheck -x setup.sh verify.sh apply-settings.sh tests/fixtures/fake-gh/gh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh tests/*.bats
 
       # Slow tests need an addon's toolchain, so each runs in that addon's
       # verify job below.

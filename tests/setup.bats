@@ -169,3 +169,11 @@ teardown() {
     jq -e --arg job "$job" '[.requiredChecks[].context] | index($job) != null' "$WORK/proj/.github/repo-standards.json" >/dev/null
   done
 }
+
+@test "ends by printing the repo create and apply-settings commands" {
+  run env GH_TOKEN= GH_CONFIG_DIR="$WORK" USER=someone \
+    "$REPO_ROOT/setup.sh" demo "$WORK/proj" --visibility private --no-install
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"gh repo create someone/demo --private --source . --push"* ]]
+  [[ "$output" == *"apply-settings.sh someone/demo"* ]]
+}
