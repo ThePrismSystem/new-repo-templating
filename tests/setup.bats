@@ -339,3 +339,42 @@ teardown() {
   run grep -c 'upload-sarif' "$WORK/pub/.github/workflows/powershell.yml"
   [ "$output" = "1" ]
 }
+
+@test "docker scaffold has its workflow, Dockerfile and check script" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/docker.yml" ]
+  [ -f "$WORK/proj/.dockerignore" ]
+  [ -x "$WORK/proj/scripts/check-docker.sh" ]
+  grep -qE '^FROM [^ ]+:[^ ]+@sha256:[0-9a-f]{64}' "$WORK/proj/Dockerfile"
+  grep -qE '^USER [a-z]+' "$WORK/proj/Dockerfile"
+  grep -qE '^HEALTHCHECK ' "$WORK/proj/Dockerfile"
+}
+
+@test "docker scaffold lists its checks in the manifest" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("docker-") or . == "codecov/patch" or startswith("analyze"))], .coverage' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = "$(printf '%s\n%s' '["docker-lint","docker-scan","analyze (actions)"]' false)" ]
+}
+
+@test "docker scaffold's tool downloads are read by renovate, and image digests are pinned" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker --no-install
+  [ "$status" -eq 0 ]
+  run node "$BATS_TEST_DIRNAME/helpers/unread-renovate-comments.js" "$WORK/proj/renovate.json" "$WORK/proj" \
+    "$WORK/proj"/.github/workflows/*.yml
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run grep -c '# renovate:' "$WORK/proj/.github/workflows/docker.yml"
+  [ "$output" -eq 3 ]
+  run jq -r '[.packageRules[] | select(.matchManagers == ["dockerfile"]) | .pinDigests] | first' "$WORK/proj/renovate.json"
+  [ "$output" = "true" ]
+}
+
+@test "private docker scaffold doesn't upload SARIF" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker --visibility private --no-install
+  [ "$status" -eq 0 ]
+  run grep -c 'upload-sarif\|security-events' "$WORK/proj/.github/workflows/docker.yml"
+  [ "$output" = "0" ]
+}

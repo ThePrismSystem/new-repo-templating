@@ -1,0 +1,9 @@
+# Keep the build context to what the image needs, and secrets out of it.
+.git
+.github
+.env
+.env.*
+node_modules
+.venv
+coverage
+sarif

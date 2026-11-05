@@ -258,3 +258,16 @@ PS1
   [ "$status" -ne 0 ]
   [[ "$output" == *"under the 80% floor"* ]]
 }
+
+# bats test_tags=slow,addon:docker
+@test "docker lint rejects an unpinned latest base image" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon docker >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-docker.sh lint
+  [ "$status" -eq 0 ]
+  sed -E 's/^FROM .*/FROM ubuntu:latest/' Dockerfile >Dockerfile.new
+  mv Dockerfile.new Dockerfile
+  run scripts/check-docker.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"DL3007"* ]]
+}
