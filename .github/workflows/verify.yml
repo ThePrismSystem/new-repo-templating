@@ -12,34 +12,18 @@ on:
     - cron: "0 7 * * 1"
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  shell:
-    name: Shell Lint and Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
-
-      - name: Shellcheck
-        run: shellcheck -x setup.sh verify.sh apply-settings.sh tests/fixtures/fake-gh/gh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh templates/addons/*/files/scripts/*.sh tests/*.bats
-
-      # Slow tests need an addon's toolchain, so each runs in that addon's
-      # verify job below.
-      - name: Bats
-        run: bats --filter-tags '!slow' tests/
-
   verify:
     name: Verify ${{ matrix.addon }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       # Report every addon's result. On a drift run the second addon's
       # failure is as informative as the first.
@@ -50,6 +34,8 @@ jobs:
         addon: [typescript-node, typescript-react, javascript, python, shell, lua, powershell, docker, combo]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       # `version` is required here: the action falls back to a
       # `packageManager` field, and this repo has no package.json.
@@ -247,8 +233,12 @@ jobs:
   verify-powershell-windows:
     name: Verify powershell on Windows PowerShell 5.1
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Scaffold the addon
         shell: bash

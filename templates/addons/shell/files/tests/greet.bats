@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  # shellcheck source=src/greet.sh
+  # shellcheck source-path=SCRIPTDIR source=../src/greet.sh
   source "$BATS_TEST_DIRNAME/../src/greet.sh"
 }
 

@@ -1,14 +1,49 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "helpers:disableTypesNodeMajor"],
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    "helpers:disableTypesNodeMajor"
+  ],
   "schedule": ["before 9am on monday"],
+  "minimumReleaseAge": "7 days",
   "prConcurrentLimit": 10,
-  "automerge": true,
-  "platformAutomerge": true,
+  "platformCommit": "enabled",
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "minimumReleaseAge": null
+  },
   "packageRules": [
     {
-      "description": "Automerge is gated on branch protection: the main ruleset requires a pull request and green Verify Templates checks, and GitHub's native auto-merge completes the merge once they pass. Renovate no longer merges directly - platformAutomerge hands that to GitHub, so a Renovate PR is subject to exactly the same gate as a human one.",
-      "matchPackageNames": ["*"]
+      "description": "Non-major updates to development tools come as one PR a week, and GitHub merges it once every required check passes.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "development tools (non-major)",
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Tools CI installs by command line or from a requirements file, grouped with the rest of the development tools.",
+      "matchManagers": ["pip_requirements", "custom.regex"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "development tools (non-major)",
+      "automerge": true,
+      "platformAutomerge": true
+    },
+    {
+      "description": "Actions run with the workflow's token, so a person reads every update before it merges.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": false
+    },
+    {
+      "description": "Runtime versions passed to setup actions change what CI tests on, so they're merged by hand.",
+      "matchDepTypes": ["uses-with"],
+      "groupName": "CI runtimes",
+      "automerge": false
     },
     {
       "description": "typescript-eslint peers typescript <6.1.0. Without this cap Renovate opens a TypeScript 7 PR every week that verify.sh correctly rejects.",
@@ -19,11 +54,6 @@
       "description": "Node baseline is a deliberate LTS policy decision. Renovate would push .nvmrc to the current non-LTS release.",
       "matchManagers": ["nvm"],
       "enabled": false
-    },
-    {
-      "description": "Every workflow, in this repo and in the templates, is pinned to commit SHAs. Renovate keeps the template pins current, so a scaffold starts with SHAs that are a week old at most.",
-      "matchManagers": ["github-actions"],
-      "pinDigests": true
     }
   ],
   "customManagers": [

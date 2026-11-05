@@ -11,6 +11,9 @@ Steps:
          *.bats file git doesn't ignore
   test   bats tests/
   all    Every step above
+
+Set BATS_FILTER_TAGS to pass --filter-tags to bats, for example '!slow' to
+leave out tests tagged slow that run in a job of their own.
 USAGE
 }
 
@@ -36,7 +39,11 @@ step_lint() {
 }
 
 step_test() {
-  bats tests/
+  if [[ -n "${BATS_FILTER_TAGS:-}" ]]; then
+    bats --filter-tags "$BATS_FILTER_TAGS" tests/
+  else
+    bats tests/
+  fi
 }
 
 main() {
