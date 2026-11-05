@@ -45,7 +45,7 @@ jobs:
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        addon: [typescript-node, typescript-react, javascript]
+        addon: [typescript-node, typescript-react, javascript, python]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -55,9 +55,20 @@ jobs:
         with:
           version: 12
 
+      # Node addons run on their own .nvmrc. The others still need Node for
+      # markdownlint, so they take the one this repo's test tools use.
+      - name: Pick the Node version
+        id: node
+        env:
+          ADDON: ${{ matrix.addon }}
+        run: |
+          file="templates/addons/$ADDON/files/.nvmrc"
+          [[ -f "$file" ]] || file=tests/tools/.nvmrc
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version-file: templates/addons/${{ matrix.addon }}/files/.nvmrc
+          node-version-file: ${{ steps.node.outputs.file }}
           # No pnpm cache: this repo has no lockfile, and caching resolution
           # would blunt the upstream drift the scheduled run exists to catch.
 

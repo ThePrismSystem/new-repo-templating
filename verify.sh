@@ -11,7 +11,7 @@ assert_no_placeholders() {
   local dir="$1"
   local hits
   if hits="$(grep -rIn '{{[A-Z_]\+}}' "$dir" \
-    --exclude-dir=node_modules --exclude-dir=.git 2>/dev/null)"; then
+    --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.venv 2>/dev/null)"; then
     echo "FAIL: unsubstituted placeholders in scaffold:" >&2
     echo "$hits" >&2
     return 1

@@ -213,3 +213,25 @@ teardown() {
   [[ "$output" == *"can't be combined"* ]]
   [ ! -e "$WORK/proj" ]
 }
+
+@test "python scaffold has its workflow, config and check script" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon python --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/python.yml" ]
+  [ -f "$WORK/proj/ruff.toml" ]
+  [ -f "$WORK/proj/.coveragerc" ]
+  [ -x "$WORK/proj/scripts/check-python.sh" ]
+  [ ! -e "$WORK/proj/package.json" ]
+  run grep -c -- '--hash=sha256:' "$WORK/proj/requirements-dev.txt"
+  [ "$output" -gt 0 ]
+  run grep -vE '^(\s+--hash=sha256:[0-9a-f]{64}( \\)?|[a-z0-9._-]+==[0-9][^ ]* \\)$' "$WORK/proj/requirements-dev.txt"
+  [ "$status" -eq 1 ]
+}
+
+@test "python scaffold lists its checks in the manifest" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon python --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("python-") or . == "codecov/patch" or startswith("analyze"))]' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = '["python-lint","python-test","analyze (actions)","analyze (python)","codecov/patch"]' ]
+}
