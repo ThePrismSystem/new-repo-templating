@@ -145,7 +145,7 @@ breaks a template surfaces as a failed run here. Shell changes are covered by
 | `.editorconfig` | Editor-level formatting (indent, EOL, charset) |
 | `.prettierrc.js` | Code formatting rules |
 | `.prettierignore` | Files excluded from formatting |
-| `.npmrc` | pnpm config (auto-install-peers) |
+| `pnpm-workspace.yaml` | pnpm settings (peer installs, allowed build scripts, overrides) |
 | `.gitignore` | Standard ignores for Node/TS projects |
 | `eslint.config.js` | Linting with strict TypeScript rules |
 | `tsconfig.json` | TypeScript compiler config |
