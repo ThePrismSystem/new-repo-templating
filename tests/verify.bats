@@ -192,7 +192,8 @@ SH
   printf 'local M = {}\n\nfunction M.count()\n  total = 1\n  return total\nend\n\nreturn M\n' >src/counter.lua
   run scripts/check-lua.sh lint
   [ "$status" -ne 0 ]
-  [[ "$output" == *"non-standard global variable 'total'"* ]]
+  # luacheck colors the variable name, so match around it.
+  [[ "$output" == *"src/counter.lua"*"non-standard global variable"*"total"* ]]
 }
 
 # bats test_tags=slow,addon:lua
