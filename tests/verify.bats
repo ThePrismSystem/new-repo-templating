@@ -325,3 +325,27 @@ combo_scaffold() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"Unknown addon 'typescript-cobol'"* ]]
 }
+
+# bats test_tags=slow,addon:javascript
+@test "javascript lint skips files git ignores" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon javascript >/dev/null
+  cd "$WORK/proj" || return 1
+  # A python .venv is the usual case; any path .gitignore lists works the same.
+  printf 'vendor/\n' >>.gitignore
+  mkdir -p vendor
+  printf 'var leftover = 1\n' >vendor/vendored.js
+  run pnpm lint
+  [ "$status" -eq 0 ]
+}
+
+# bats test_tags=slow,addon:typescript-node
+@test "typescript lint skips files git ignores" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node >/dev/null
+  cd "$WORK/proj" || return 1
+  # A python .venv is the usual case; any path .gitignore lists works the same.
+  printf 'vendor/\n' >>.gitignore
+  mkdir -p vendor
+  printf 'var leftover = 1\n' >vendor/vendored.js
+  run pnpm lint
+  [ "$status" -eq 0 ]
+}
