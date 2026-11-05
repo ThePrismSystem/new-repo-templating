@@ -78,6 +78,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: lua
-          files: coverage/lcov.info
+          files: coverage/lua-lcov.info
           disable_search: true
           fail_ci_if_error: true

@@ -45,7 +45,9 @@ jobs:
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        addon: [typescript-node, typescript-react, javascript, python, shell, lua, powershell, docker]
+        # `combo` stacks python, lua, powershell and javascript in one
+        # scaffold, so it installs each of their toolchains.
+        addon: [typescript-node, typescript-react, javascript, python, shell, lua, powershell, docker, combo]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -145,15 +147,15 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
-        if: matrix.addon == 'lua'
+        if: contains(fromJSON('["lua", "combo"]'), matrix.addon)
         with:
           luaVersion: "5.4"
 
       - uses: leafo/gh-actions-luarocks@1c4a92caecc8f6850f673cbadfd57b3e555417ce # v6.1.1
-        if: matrix.addon == 'lua'
+        if: contains(fromJSON('["lua", "combo"]'), matrix.addon)
 
       - name: Install the Lua tools
-        if: matrix.addon == 'lua'
+        if: contains(fromJSON('["lua", "combo"]'), matrix.addon)
         run: |
           # renovate: datasource=github-tags depName=lunarmodules/luacheck
           luarocks install luacheck 1.2.0
@@ -165,7 +167,7 @@ jobs:
           luarocks install luacov-reporter-lcov 0.2
 
       - name: Install lua-language-server
-        if: matrix.addon == 'lua'
+        if: contains(fromJSON('["lua", "combo"]'), matrix.addon)
         env:
           # renovate: datasource=github-release-attachments depName=LuaLS/lua-language-server
           VERSION: 3.19.2
@@ -180,7 +182,7 @@ jobs:
           echo "$RUNNER_TEMP/lua-language-server/bin" >> "$GITHUB_PATH"
 
       - name: Install the PowerShell modules
-        if: matrix.addon == 'powershell'
+        if: contains(fromJSON('["powershell", "combo"]'), matrix.addon)
         shell: pwsh
         run: |
           # renovate: datasource=nuget depName=PSScriptAnalyzer registryUrl=https://www.powershellgallery.com/api/v2/
@@ -225,10 +227,20 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
 
       - name: Verify addon
-        run: ./verify.sh --addon ${{ matrix.addon }}
+        if: matrix.addon != 'combo'
+        env:
+          ADDON: ${{ matrix.addon }}
+        run: ./verify.sh --addon "$ADDON"
+
+      - name: Verify the stacked scaffold
+        if: matrix.addon == 'combo'
+        run: ./verify.sh --combo python,lua,powershell,javascript
 
       - name: Slow tests for this addon
-        run: bats --filter-tags "slow,addon:${{ matrix.addon }}" tests/
+        if: matrix.addon != 'combo'
+        env:
+          ADDON: ${{ matrix.addon }}
+        run: bats --filter-tags "slow,addon:$ADDON" tests/
 
   # The powershell addon promises Windows PowerShell 5.1 as well as
   # PowerShell 7, and only a Windows runner has 5.1.

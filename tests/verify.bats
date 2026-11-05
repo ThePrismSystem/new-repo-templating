@@ -202,7 +202,7 @@ SH
   cd "$WORK/proj" || return 1
   run scripts/check-lua.sh test
   [ "$status" -eq 0 ]
-  [ -f coverage/lcov.info ]
+  [ -f coverage/lua-lcov.info ]
   {
     echo "local M = {}"
     for i in $(seq 1 20); do
@@ -270,4 +270,58 @@ PS1
   run scripts/check-docker.sh lint
   [ "$status" -ne 0 ]
   [[ "$output" == *"DL3007"* ]]
+}
+
+COMBO=(python lua powershell javascript)
+
+combo_scaffold() {
+  local args=() addon
+  for addon in "${COMBO[@]}"; do
+    args+=(--addon "$addon")
+  done
+  "$REPO_ROOT/setup.sh" demo "$WORK/combo" "${args[@]}" --no-install >/dev/null
+}
+
+@test "combo scaffold merges every addon's renovate rules and gitignore" {
+  combo_scaffold
+  local rules managers addon fragment
+  rules="$(jq '.packageRules | length' "$REPO_ROOT/templates/base/renovate.json")"
+  managers="$(jq '.customManagers | length' "$REPO_ROOT/templates/base/renovate.json")"
+  for addon in "${COMBO[@]}"; do
+    fragment="$REPO_ROOT/templates/addons/$addon/renovate.json"
+    if [[ -f "$fragment" ]]; then
+      rules=$((rules + $(jq '.packageRules // [] | length' "$fragment")))
+      managers=$((managers + $(jq '.customManagers // [] | length' "$fragment")))
+    fi
+  done
+  [ "$(jq '.packageRules | length' "$WORK/combo/renovate.json")" -eq "$rules" ]
+  [ "$(jq '.customManagers | length' "$WORK/combo/renovate.json")" -eq "$managers" ]
+  for addon in "${COMBO[@]}"; do
+    if [[ -f "$REPO_ROOT/templates/addons/$addon/gitignore" ]]; then
+      [ "$(grep -c "^# $addon\$" "$WORK/combo/.gitignore")" -eq 1 ]
+    fi
+  done
+}
+
+@test "combo manifest lists codecov/patch once" {
+  combo_scaffold
+  run jq '[.requiredChecks[] | select(.context == "codecov/patch")] | length' "$WORK/combo/.github/repo-standards.json"
+  [ "$output" -eq 1 ]
+  run grep -E 'after_n_builds: [0-9]+' "$WORK/combo/codecov.yml"
+  # python, lua and javascript upload once each; powershell once per OS.
+  [[ "$output" == *"after_n_builds: 5"* ]]
+}
+
+@test "combo scaffold's coverage uploads each read their own file" {
+  combo_scaffold
+  local files
+  files="$(grep -h -A8 'codecov/codecov-action' "$WORK/combo"/.github/workflows/*.yml | sed -n 's/^ *files: //p')"
+  [ "$(wc -l <<<"$files")" -eq 4 ]
+  [ "$(sort -u <<<"$files" | wc -l)" -eq 4 ]
+}
+
+@test "--combo rejects an unknown addon" {
+  run "$REPO_ROOT/verify.sh" --combo python,typescript-cobol
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Unknown addon 'typescript-cobol'"* ]]
 }

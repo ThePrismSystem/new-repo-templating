@@ -26,10 +26,10 @@ step_lint() {
 # luacov adds to its stats file, so each run starts from an empty one.
 step_test() {
   mkdir -p coverage
-  rm -f coverage/luacov.stats.out coverage/lcov.info
+  rm -f coverage/luacov.stats.out coverage/lua-lcov.info
   busted --coverage
   luacov
-  scripts/lcov-floor.sh coverage/lcov.info 80
+  scripts/lcov-floor.sh coverage/lua-lcov.info 80
 }
 
 main() {

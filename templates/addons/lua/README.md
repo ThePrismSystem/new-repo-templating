@@ -29,7 +29,7 @@ and every job is a required check.
 | Step | CI job | Runs |
 |---|---|---|
 | `lint` | `lua-lint` | luacheck, `lua-language-server --check` |
-| `test` | `lua-test` | busted with luacov, `coverage/lcov.info` uploaded to Codecov under the `lua` flag |
+| `test` | `lua-test` | busted with luacov, `coverage/lua-lcov.info` uploaded to Codecov under the `lua` flag |
 
 ## In the generated project
 

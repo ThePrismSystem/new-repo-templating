@@ -4,5 +4,5 @@ return {
   includeuntestedfiles = { "src" },
   statsfile = "coverage/luacov.stats.out",
   reporter = "lcov",
-  reportfile = "coverage/lcov.info",
+  reportfile = "coverage/lua-lcov.info",
 }
