@@ -75,7 +75,7 @@ EOF
 
 cleanup() {
   local dir
-  if (( ${#WORKDIRS[@]} == 0 )); then
+  if ((${#WORKDIRS[@]} == 0)); then
     return
   fi
   for dir in "${WORKDIRS[@]}"; do
@@ -180,7 +180,7 @@ main() {
         SKIP_AUDIT=true
         shift
         ;;
-      -h|--help)
+      -h | --help)
         usage
         exit 0
         ;;
@@ -192,7 +192,7 @@ main() {
     esac
   done
 
-  if (( ${#SELECTED_ADDONS[@]} == 0 && ${#COMBO_ADDONS[@]} == 0 )); then
+  if ((${#SELECTED_ADDONS[@]} == 0 && ${#COMBO_ADDONS[@]} == 0)); then
     SELECTED_ADDONS=("${AVAILABLE_ADDONS[@]}")
   fi
 
@@ -209,7 +209,7 @@ main() {
   for addon in "${SELECTED_ADDONS[@]}"; do
     verify_scaffold "$addon" "$addon"
   done
-  if (( ${#COMBO_ADDONS[@]} > 0 )); then
+  if ((${#COMBO_ADDONS[@]} > 0)); then
     verify_scaffold "combo (${COMBO_ADDONS[*]})" "${COMBO_ADDONS[@]}"
   fi
 

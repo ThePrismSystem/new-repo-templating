@@ -1,16 +1,13 @@
-name: CodeQL
+name: codeql
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
+  pull_request:
   schedule:
-    - cron: "0 6 * * 1"
-  workflow_dispatch:
+    - cron: "27 4 * * 1"
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,22 +15,24 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze
+    name: analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
-      # Required to upload results to the Security tab.
-      security-events: write
       contents: read
+      security-events: write # to upload the results to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      # This repo has no application code. `actions` analyzes the workflow
-      # files themselves for injection and permission problems, which is the
-      # only attack surface here worth scanning.
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          languages: actions
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
+          persist-credentials: false
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}

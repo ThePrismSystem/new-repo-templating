@@ -1,0 +1,90 @@
+{
+  "addons": [
+    "shell"
+  ],
+  "visibility": "public",
+  "codeScanning": true,
+  "coverage": false,
+  "requiredChecks": [
+    {
+      "context": "gitleaks",
+      "integration_id": 15368
+    },
+    {
+      "context": "zizmor",
+      "integration_id": 15368
+    },
+    {
+      "context": "actionlint",
+      "integration_id": 15368
+    },
+    {
+      "context": "typos",
+      "integration_id": 15368
+    },
+    {
+      "context": "markdownlint",
+      "integration_id": 15368
+    },
+    {
+      "context": "conventional-commits",
+      "integration_id": 15368
+    },
+    {
+      "context": "shell-lint",
+      "integration_id": 15368
+    },
+    {
+      "context": "shell-test",
+      "integration_id": 15368
+    },
+    {
+      "context": "analyze (actions)",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify typescript-node",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify typescript-react",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify javascript",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify python",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify shell",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify lua",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify powershell",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify docker",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify combo",
+      "integration_id": 15368
+    },
+    {
+      "context": "Verify powershell on Windows PowerShell 5.1",
+      "integration_id": 15368
+    }
+  ],
+  "repoSettings": {
+    "has_issues": false,
+    "has_discussions": false
+  }
+}

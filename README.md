@@ -2,171 +2,212 @@
 
 [![Verify Templates](https://github.com/ThePrismSystem/new-repo-templating/actions/workflows/verify.yml/badge.svg)](https://github.com/ThePrismSystem/new-repo-templating/actions/workflows/verify.yml)
 
-Reusable project templates for bootstrapping new TypeScript projects with fully
-configured tooling. Run `setup.sh`, get a project with linting, formatting,
-testing, type checking, git hooks, CI, and dependency automation already wired
-together and verified to work as a set.
+The standard every new repository starts from. A base gives every repo the same
+settings, checks and dependency automation, and addons add the linting, tests and
+coverage for each language or kind of repo. `setup.sh` scaffolds a project from the
+base and the addons you pick. `apply-settings.sh` then configures the GitHub
+repository to match: merge settings, the `main` ruleset and its required checks,
+signed commits, and the security features.
 
-**What this is not:** a package, a CLI you install, or a GitHub template
-repository. It is a directory of template files plus a shell script that copies
-and parameterizes them. Nothing here is published to a registry.
+It's a directory of templates and shell scripts. There's no package to install, and
+it isn't a GitHub template repository.
 
-This repository is published for reference and is not accepting contributions.
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [LICENSE](LICENSE).
+[docs/standards.md](docs/standards.md) lists each rule in the standard, what enforces
+it, and why.
 
-## Available Flavors
+This repository is published for reference and is not accepting contributions. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and [LICENSE](LICENSE).
 
-### `typescript-node`
+## Starting a repo
 
-Node.js backend, CLI, or library template.
+1. Scaffold the project:
 
-- TypeScript 6.0 with strict mode, ES2022 target, Bundler resolution
-- ESLint 10 with typescript-eslint strict type checking, import ordering, unicorn, prettier compat
-- Prettier with consistent formatting (semicolons, double quotes, 100 char width)
-- Vitest with v8 coverage (80% thresholds)
-- Husky + lint-staged (pre-commit: format + lint, pre-push: typecheck + lint + test)
-- Commitlint enforcing Conventional Commits on commit-msg hook
-- Knip for detecting unused code and dependencies
-- cspell for spell checking source files
-- t3-env for type-safe environment variables with Zod validation
-- Renovate for automated dependency updates (replaces Dependabot)
-- GitHub Actions CI (lint, typecheck, unit tests, quality checks in parallel)
-- GitHub templates (PR template, bug report, CODEOWNERS)
-- CodeQL security scanning and Gitleaks secret scanning (public repos only)
+   ```bash
+   ./setup.sh my-tool --addon python --addon shell
+   ```
 
-### `typescript-react`
+2. Create the repository and push the first commit. `setup.sh` prints this command
+   with your owner filled in:
 
-Vite + React SPA template. Includes everything from `typescript-node` plus:
+   ```bash
+   cd my-tool
+   gh repo create <owner>/my-tool --public --source . --push
+   ```
 
-- Vite dev server and build
-- React 19 with JSX transform
-- eslint-plugin-react-hooks and eslint-plugin-react-refresh
-- jsdom test environment with @testing-library/react, @testing-library/jest-dom, @testing-library/user-event
-- rollup-plugin-visualizer for bundle analysis (`pnpm analyze`)
-- CI build job that depends on lint + typecheck
+3. Apply the settings. Run it with `--dry-run` first to see each change.
 
-## Pinned Versions
+   ```bash
+   ./apply-settings.sh <owner>/my-tool --dry-run
+   ./apply-settings.sh <owner>/my-tool
+   ```
 
-Two dependencies are deliberately held below their latest release. Both are enforced by `renovate.json`, so they will not drift silently — but if you change them by hand, read this first.
+4. Install the Renovate and Codecov GitHub apps on the repository. The script can't
+   do this, so it prints the links when it finishes. If an addon measures coverage,
+   copy the repository's upload token from Codecov and run the script again with
+   `CODECOV_TOKEN` set, which stores the token as a repo secret.
 
-**`typescript` is pinned `~6.0.3` — the tilde is load-bearing.** `typescript-eslint` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`, and there is no newer major line of it. A caret (`^6.0.3`) would admit 6.1.0 the day it ships and break the peer. TypeScript 7 is out for the same reason. Revisit when typescript-eslint supports the TypeScript 7 compiler API.
-
-**`@types/node` tracks `.nvmrc`, not its own latest.** The templates run Node 24 (Active LTS), so `@types/node` stays on the 24 line. Typing against Node 26 APIs while running Node 24 produces code that compiles and then fails at runtime.
-
-One behavior worth knowing if you touch the TypeScript pin: **TypeScript 6.0 no longer auto-includes `@types/*` packages without an explicit `types` entry.** That is why `typescript-node`'s `tsconfig.json` sets `"types": ["node"]`, and why the react template can keep Node globals out of browser code by listing `types` only in `tsconfig.node.json`. If the pin moves, re-verify that boundary rather than assuming it holds.
-
-## Usage
+## setup.sh
 
 ```bash
-./setup.sh <project-name> [target-dir] [--flavor typescript-node|typescript-react] [--visibility public|private]
+./setup.sh <project-name> [target-dir] [--addon <name>]... [--visibility public|private] [--no-install]
 ```
-
-### Examples
 
 ```bash
-# Create a Node.js project in ./my-api (public, default)
-./setup.sh my-api
+# A Node service
+./setup.sh my-api --addon typescript-node
 
-# Create a React project in a specific directory
-./setup.sh my-app /path/to/my-app --flavor typescript-react
+# A React app in a directory of your choosing
+./setup.sh my-app ~/git/my-app --addon typescript-react
 
-# Create a private repo without CodeQL/Gitleaks workflows
-./setup.sh my-internal-api --visibility private
-
-# Create a library
-./setup.sh my-lib ./packages/my-lib --flavor typescript-node
+# Private scripts for macOS and Windows
+./setup.sh my-scripts --addon shell --addon powershell --addon javascript --visibility private
 ```
 
-The script will:
+The script copies the base files, then each addon's files and the shared files its
+addons need. From each addon's fragments it assembles `.gitignore`, `renovate.json`,
+`codecov.yml` when an addon measures coverage, and `.github/repo-standards.json`,
+the manifest `apply-settings.sh` reads. It fills in the placeholders, runs
+`git init`, then runs each addon's setup steps, such as `pnpm install` or creating a
+Python virtual environment. `--no-install` skips those setup steps.
 
-1. Copy shared configs (`.editorconfig`, `.prettierrc.js`, `.gitignore`, GitHub templates, etc.)
-2. Copy the selected flavor's files (ESLint, TypeScript, Vitest configs, CI, husky hooks, etc.)
-3. If `--visibility public` (default), copy public-only workflows (CodeQL, Gitleaks)
-4. Replace placeholders (`{{PROJECT_NAME}}`, `{{GITHUB_OWNER}}`, `{{YEAR}}`, etc.)
-5. Run `git init`, `pnpm install`, and `husky` setup
+| Placeholder | Value |
+|---|---|
+| `{{PROJECT_NAME}}` | The first argument |
+| `{{GITHUB_OWNER}}` | The login `gh api user` returns |
+| `{{PROJECT_DESCRIPTION}}` | A default sentence to edit afterwards |
+| `{{YEAR}}` | The current year, for `LICENSE` |
+| `{{CODEQL_LANGUAGES}}` | `actions` plus each addon's CodeQL language |
+
+## Addons
+
+| Addon | For | Lint | Tests | CodeQL |
+|---|---|---|---|---|
+| [`typescript-node`](templates/addons/typescript-node/README.md) | Node services, CLIs and libraries | ESLint strict type-checked, Prettier, tsc, knip, cspell | Vitest, 80% coverage | `javascript-typescript` |
+| [`typescript-react`](templates/addons/typescript-react/README.md) | Vite and React apps | As above, plus the React hooks rules and a production build | Vitest with jsdom, 80% coverage | `javascript-typescript` |
+| [`javascript`](templates/addons/javascript/README.md) | Node scripts, ES5 scripts and JavaScript for Automation | ESLint with presets for ES5 and JXA, Prettier, cspell | `node --test`, 80% of lines | `javascript-typescript` |
+| [`python`](templates/addons/python/README.md) | Python 3.13 modules and scripts | ruff check and ruff format, with dev requirements pinned by hash | unittest under coverage.py, 80% with branch coverage | `python` |
+| [`lua`](templates/addons/lua/README.md) | Lua 5.4 | luacheck, lua-language-server | busted with luacov, 80% of lines | none |
+| [`powershell`](templates/addons/powershell/README.md) | Modules for PowerShell 7 and Windows PowerShell 5.1 | PSScriptAnalyzer with InjectionHunter's rules | Pester 6 on both PowerShells, 80% coverage | none |
+| [`shell`](templates/addons/shell/README.md) | Bash scripts | shellcheck, shfmt | bats | none |
+| [`docker`](templates/addons/docker/README.md) | Container images | hadolint, Trivy's misconfiguration scan | Trivy scan of the built image | none |
+
+Each addon's README covers its config, its CI jobs and how to fix what its checks
+report.
+
+The three Node addons each own `package.json`, so a repo takes at most one of them
+and `setup.sh` rejects the others. The rest stack with anything. CI scaffolds python,
+lua, powershell and javascript into one repo and runs every check to make sure they
+still do.
 
 ### Visibility
 
-| Visibility | Includes |
-|---|---|
-| `public` (default) | All tools + CodeQL security scanning + Gitleaks secret scanning |
-| `private` | All tools except CodeQL and Gitleaks (require public repo access) |
+Public is the default. `--visibility private` leaves out what needs code scanning,
+which GitHub only offers free on public repositories: CodeQL, Scorecard, the SARIF
+uploads, and the ruleset's code scanning rule. The tools behind those uploads still
+fail the job on a finding.
 
-### Placeholders
-
-| Placeholder | Source |
-|---|---|
-| `{{PROJECT_NAME}}` | First argument to `setup.sh` |
-| `{{GITHUB_OWNER}}` | Auto-detected from `gh api user` |
-| `{{PROJECT_DESCRIPTION}}` | Default generated (editable after) |
-| `{{YEAR}}` | Current year |
-| `{{NODE_VERSION}}` | From `.nvmrc` in the flavor |
-
-## Verifying Templates
-
-The templates carry no lockfiles, so every scaffold resolves the newest release
-matching each range. `verify.sh` scaffolds each flavor into a temp directory and
-runs the same checks the generated project's CI runs, so template breakage is
-caught here rather than by whoever next runs `setup.sh`.
-
-It invokes those checks directly as pnpm scripts and never executes the
-scaffolded workflow files, so a green run shows the template's checks pass — not
-that its CI is wired up correctly. The step list is also not identical to any one
-flavor's CI: `verify.sh` runs `build` for both flavors, while the node template's
-CI has no build job.
+## apply-settings.sh
 
 ```bash
-./verify.sh                              # both flavors
-./verify.sh --flavor typescript-react    # one flavor
-./verify.sh --keep                       # leave scaffolds on disk to debug
-./verify.sh --skip-audit                 # skip pnpm audit
+./apply-settings.sh <owner/repo> [--manifest <path>] [--addon <name>]... [--visibility public|private] [--dry-run]
 ```
 
-Each run scaffolds twice per flavor: once private with `--no-install` for the
-structural checks (no leftover `{{PLACEHOLDER}}`, correct visibility gating),
-and once public with a full install for the gate itself (`format`, `lint`,
-`typecheck`, coverage tests, `knip`, `spell`, `build`, `pnpm audit`).
+The script reads `.github/repo-standards.json` from the repository and applies:
 
-CI runs this on every push and PR, plus weekly, so an upstream release that
-breaks a template surfaces as a failed run here. Shell changes are covered by
-`bats tests/` and `shellcheck`.
+- Merge commits only, titled and described from the pull request, with auto-merge,
+  branch deletion on merge, and web commit sign-off
+- Secret scanning with push protection, Dependabot alerts, and private vulnerability
+  reporting
+- A `main` ruleset requiring signed commits, a pull request, resolved review threads
+  and the manifest's checks, plus CodeQL's results on public repos
+- A `release tags` ruleset that stops `v*` tags from being moved or deleted
 
-## Adding a New Flavor
+It creates or updates each ruleset by name and leaves other rulesets alone. It warns
+when classic branch protection or another branch ruleset could conflict with `main`'s. `--dry-run` prints
+each change against the current state and makes none of them. For a repo with no
+manifest, pass `--addon` flags and the script works one out. You need admin rights
+on the repository.
 
-1. Create a new directory under `templates/` (e.g., `templates/typescript-fastify`)
-2. Add flavor-specific configs (ESLint, tsconfig, package.json, CI, etc.)
-3. Shared files from `templates/_shared/` are copied first, then your flavor's files overlay on top
-4. Use `{{PLACEHOLDER}}` syntax for any values that should be parameterized
+## Verifying the templates
 
-## What's Included
+The templates carry no lockfiles, so a scaffold resolves the newest release in each
+version range, and an upstream release can break a template without any change here.
+`verify.sh` catches that:
 
-| Config | Purpose |
-|---|---|
-| `.editorconfig` | Editor-level formatting (indent, EOL, charset) |
-| `.prettierrc.js` | Code formatting rules |
-| `.prettierignore` | Files excluded from formatting |
-| `pnpm-workspace.yaml` | pnpm settings (peer installs, allowed build scripts, overrides) |
-| `.gitignore` | Standard ignores for Node/TS projects |
-| `eslint.config.js` | Linting with strict TypeScript rules |
-| `tsconfig.json` | TypeScript compiler config |
-| `vitest.config.ts` | Test runner with coverage |
-| `.husky/*` | Git hooks (pre-commit, pre-push, commit-msg) |
-| `commitlint.config.js` | Conventional Commits enforcement |
-| `knip.json` | Unused code/dependency detection |
-| `cspell.config.yaml` | Spell checking configuration |
-| `renovate.json` | Automated dependency updates |
-| `.github/workflows/ci.yml` | CI pipeline (lint, typecheck, test, quality) |
-| `.github/workflows/codeql.yml` | CodeQL security scanning (public only) |
-| `.github/workflows/gitleaks.yml` | Secret scanning (public only) |
-| `.github/` | PR template, issue templates, CODEOWNERS |
+```bash
+./verify.sh                                # every addon, one at a time
+./verify.sh --addon lua                    # one addon
+./verify.sh --combo python,lua,javascript  # addons stacked in one scaffold
+./verify.sh --keep                         # leave the scaffolds on disk
+./verify.sh --skip-audit                   # skip dependency audits
+```
+
+For each addon it scaffolds twice. A private scaffold without installs checks the
+structure: no `{{PLACEHOLDER}}` left behind, and no public-only workflows. A public
+scaffold with installs runs the addon's check script, the same one its CI jobs call,
+then commits and runs the base checks. The addon's toolchain has to be on your PATH.
+
+The `Verify Templates` workflow runs one job per addon, one for the stacked scaffold
+and one for Windows PowerShell 5.1, on every pull request and weekly.
+
+The unit tests for the scripts are in `tests/`:
+
+```bash
+bats --filter-tags '!slow' tests/
+```
+
+Tests tagged `slow` scaffold a project and need an addon's toolchain, so each runs in
+that addon's verify job.
+
+This repository follows the standard too, as a public repo with the shell addon. Its
+manifest adds the verify jobs to the required checks.
+
+## Adding an addon
+
+An addon lives in `templates/addons/<name>/`:
+
+- `addon.json`: the description, conflicting addons, shared directories from
+  `templates/common/` it needs, its CodeQL language, the CI job names it adds as
+  required checks, its coverage flag and upload count, its setup steps, and its check
+  script
+- `files/`: copied into the project as is, including `scripts/check-<name>.sh` and
+  `.github/workflows/<name>.yml`
+- `gitignore` and `renovate.json`: fragments merged into the project's files
+- `README.md`
+
+The check script takes one step name per CI job, plus `all`. Then add the addon to
+the matrix in `.github/workflows/verify.yml`, with its toolchain, and give it tests
+in `tests/setup.bats` and `tests/verify.bats`.
+
+## Pinned versions
+
+Two dependencies are held below their latest release on purpose. This repo's
+`renovate.json` holds both, so Renovate won't move them, but read this before
+changing them by hand.
+
+`typescript` is pinned to `~6.0.3`, and the tilde matters. `typescript-eslint`
+declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`, and it has no newer major
+line. A caret (`^6.0.3`) would take 6.1.0 the day it ships and break the peer, and
+TypeScript 7 is out for the same reason. Revisit this when typescript-eslint supports
+the TypeScript 7 compiler API. Generated TypeScript projects carry the same cap in
+their own `renovate.json`.
+
+`@types/node` follows `.nvmrc` rather than its own latest. The templates run Node 24,
+the active LTS, so `@types/node` stays on the 24 line. Typing against Node 26 APIs
+while running Node 24 gives code that compiles and then fails at runtime.
+
+If you move the TypeScript pin, note that TypeScript 6.0 stopped including `@types/*`
+packages without an explicit `types` entry. That's why `typescript-node`'s
+`tsconfig.json` sets `"types": ["node"]`, and why the React template keeps Node
+globals out of browser code by listing `types` only in `tsconfig.node.json`. Check
+that boundary again after the move.
 
 ## License
 
 This repository is licensed under the terms in [LICENSE](LICENSE): all rights
-reserved. The code is readable for reference; no permission is granted to use,
+reserved. The code is readable for reference, and no permission is granted to use,
 copy, modify, or redistribute it.
 
-Projects generated by `setup.sh` are a separate matter — they ship the MIT
-license in `templates/*/LICENSE`, with the copyright holder set to whoever runs
-the script. Scaffolding a project with this tool puts no restriction on the code
-you build.
+Projects generated by `setup.sh` are a separate matter. They ship the MIT license
+from `templates/base/files/LICENSE`, with the copyright holder set to whoever runs
+the script, so scaffolding a project puts no restriction on the code you build.

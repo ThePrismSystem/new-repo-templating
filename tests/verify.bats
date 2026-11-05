@@ -13,14 +13,14 @@ teardown() {
 
 @test "assert_no_placeholders passes on a clean directory" {
   mkdir -p "$WORK/src"
-  echo "const name = 'demo';" > "$WORK/src/index.ts"
+  echo "const name = 'demo';" >"$WORK/src/index.ts"
   run assert_no_placeholders "$WORK"
   [ "$status" -eq 0 ]
 }
 
 @test "assert_no_placeholders fails on an unsubstituted placeholder" {
   mkdir -p "$WORK/src"
-  echo "const name = '{{PROJECT_NAME}}';" > "$WORK/src/index.ts"
+  echo "const name = '{{PROJECT_NAME}}';" >"$WORK/src/index.ts"
   run assert_no_placeholders "$WORK"
   [ "$status" -eq 1 ]
   [[ "$output" == *"PROJECT_NAME"* ]]
@@ -28,15 +28,15 @@ teardown() {
 
 @test "assert_no_placeholders ignores node_modules and .git" {
   mkdir -p "$WORK/node_modules/pkg" "$WORK/.git"
-  echo "{{SOMETHING}}" > "$WORK/node_modules/pkg/index.js"
-  echo "{{ELSE}}" > "$WORK/.git/description"
+  echo "{{SOMETHING}}" >"$WORK/node_modules/pkg/index.js"
+  echo "{{ELSE}}" >"$WORK/.git/description"
   run assert_no_placeholders "$WORK"
   [ "$status" -eq 0 ]
 }
 
 @test "assert_no_placeholders ignores a Python virtual environment" {
   mkdir -p "$WORK/.venv/lib"
-  echo "{{{NRAND}}}" > "$WORK/.venv/lib/sqldata.py"
+  echo "{{{NRAND}}}" >"$WORK/.venv/lib/sqldata.py"
   run assert_no_placeholders "$WORK"
   [ "$status" -eq 0 ]
 }
