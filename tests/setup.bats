@@ -235,3 +235,33 @@ teardown() {
     "$WORK/proj/.github/repo-standards.json"
   [ "$output" = '["python-lint","python-test","analyze (actions)","analyze (python)","codecov/patch"]' ]
 }
+
+@test "shell scaffold has its workflow, config and check script" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon shell --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/shell.yml" ]
+  [ -x "$WORK/proj/scripts/check-shell.sh" ]
+  [ -x "$WORK/proj/src/greet.sh" ]
+  [ -f "$WORK/proj/tests/greet.bats" ]
+  [ ! -e "$WORK/proj/package.json" ]
+  [ ! -e "$WORK/proj/codecov.yml" ]
+}
+
+@test "shell scaffold lists its checks in the manifest" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon shell --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("shell-") or . == "codecov/patch" or startswith("analyze"))], .coverage' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = "$(printf '%s\n%s' '["shell-lint","shell-test","analyze (actions)"]' false)" ]
+}
+
+@test "every renovate comment in a scaffold's workflows has a custom manager that reads it" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon shell --no-install
+  [ "$status" -eq 0 ]
+  run node "$BATS_TEST_DIRNAME/helpers/unread-renovate-comments.js" "$WORK/proj/renovate.json" "$WORK/proj" \
+    "$WORK/proj"/.github/workflows/*.yml
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run grep -c '# renovate:' "$WORK/proj/.github/workflows/shell.yml"
+  [ "$output" -eq 3 ]
+}

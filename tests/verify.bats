@@ -165,3 +165,20 @@ JXA
   [ "$status" -ne 0 ]
   [[ "$output" == *"untested.py"* ]]
 }
+
+# bats test_tags=slow,addon:shell
+@test "shell lint rejects an unquoted variable in a starter script" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon shell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-shell.sh lint
+  [ "$status" -eq 0 ]
+  cat >>src/greet.sh <<'SH'
+
+shout() {
+  echo $1
+}
+SH
+  run scripts/check-shell.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"SC2086"* ]]
+}
