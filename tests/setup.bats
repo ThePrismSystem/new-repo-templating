@@ -155,3 +155,17 @@ teardown() {
   run jq -r '.codeScanning' "$WORK/proj/.github/repo-standards.json"
   [ "$output" = "false" ]
 }
+
+@test "manifest requires every job in the base lint workflow" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --no-install
+  [ "$status" -eq 0 ]
+  local job
+  # Job ids sit at two spaces under `jobs:`, and each job's name is its id.
+  local jobs
+  jobs="$(awk '/^jobs:/ { in_jobs = 1; next } in_jobs && /^  [a-z-]+:$/ { gsub(/[ :]/, ""); print }' \
+    "$WORK/proj/.github/workflows/lint.yml")"
+  [ "$(wc -l <<<"$jobs")" -eq 6 ]
+  for job in $jobs; do
+    jq -e --arg job "$job" '[.requiredChecks[].context] | index($job) != null' "$WORK/proj/.github/repo-standards.json" >/dev/null
+  done
+}

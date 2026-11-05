@@ -1,5 +1,12 @@
 {
   "name": "base",
   "description": "What every repo gets",
-  "checks": []
+  "checks": [
+    "gitleaks",
+    "zizmor",
+    "actionlint",
+    "typos",
+    "markdownlint",
+    "conventional-commits"
+  ]
 }
