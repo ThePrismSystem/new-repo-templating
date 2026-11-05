@@ -36,7 +36,7 @@ teardown() {
 
 @test "assert_visibility passes when public scaffold has both workflows" {
   mkdir -p "$WORK/.github/workflows"
-  touch "$WORK/.github/workflows/codeql.yml" "$WORK/.github/workflows/gitleaks.yml"
+  touch "$WORK/.github/workflows/codeql.yml" "$WORK/.github/workflows/scorecard.yml"
   run assert_visibility "$WORK" public
   [ "$status" -eq 0 ]
 }
@@ -46,7 +46,7 @@ teardown() {
   touch "$WORK/.github/workflows/codeql.yml"
   run assert_visibility "$WORK" public
   [ "$status" -eq 1 ]
-  [[ "$output" == *"gitleaks.yml"* ]]
+  [[ "$output" == *"scorecard.yml"* ]]
 }
 
 @test "assert_visibility passes when private scaffold has neither workflow" {
@@ -64,25 +64,17 @@ teardown() {
   [[ "$output" == *"codeql.yml"* ]]
 }
 
-@test "resolve_test_script picks the node flavor's unit coverage script" {
-  mkdir -p "$WORK"
-  cat > "$WORK/package.json" <<'JSON'
-{ "scripts": { "test:coverage": "vitest run --coverage",
-               "test:unit:coverage": "vitest run --exclude x --coverage" } }
-JSON
-  run resolve_test_script "$WORK"
-  [ "$status" -eq 0 ]
-  [ "$output" = "test:unit:coverage" ]
-}
-
-@test "resolve_test_script falls back to plain coverage script" {
-  mkdir -p "$WORK"
-  cat > "$WORK/package.json" <<'JSON'
-{ "scripts": { "test:coverage": "vitest run --coverage" } }
-JSON
-  run resolve_test_script "$WORK"
-  [ "$status" -eq 0 ]
-  [ "$output" = "test:coverage" ]
+@test "every addon names an executable check script" {
+  local meta check
+  for meta in "$REPO_ROOT"/templates/addons/*/addon.json; do
+    check="$(jq -r '.check' "$meta")"
+    [ "$check" != "null" ]
+    local found=false dir
+    for dir in "$(dirname "$meta")/files" "$REPO_ROOT"/templates/common/*/files; do
+      if [[ -x "$dir/$check" ]]; then found=true; fi
+    done
+    [ "$found" = "true" ]
+  done
 }
 
 @test "--help exits zero" {
@@ -91,8 +83,19 @@ JSON
   [[ "$output" == *"--skip-audit"* ]]
 }
 
-@test "unknown flavor is rejected" {
-  run "$REPO_ROOT/verify.sh" --flavor typescript-cobol
+@test "unknown addon is rejected" {
+  run "$REPO_ROOT/verify.sh" --addon typescript-cobol
   [ "$status" -ne 0 ]
-  [[ "$output" == *"Unknown flavor"* ]]
+  [[ "$output" == *"Unknown addon"* ]]
+}
+
+# bats test_tags=slow,addon:typescript-node
+@test "typescript scaffold lints clean after a coverage run" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon typescript-node >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-typescript.sh test
+  [ "$status" -eq 0 ]
+  [ -d coverage ]
+  run scripts/check-typescript.sh lint
+  [ "$status" -eq 0 ]
 }

@@ -30,20 +30,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y bats
 
       - name: Shellcheck
-        run: shellcheck setup.sh verify.sh
+        run: shellcheck -x setup.sh verify.sh lib/*.sh templates/*/files/scripts/*.sh templates/common/*/files/scripts/*.sh tests/*.bats
 
+      # Slow tests need an addon's toolchain, so each runs in that addon's
+      # verify job below.
       - name: Bats
-        run: bats tests/
+        run: bats --filter-tags '!slow' tests/
 
   verify:
-    name: Verify ${{ matrix.flavor }}
+    name: Verify ${{ matrix.addon }}
     runs-on: ubuntu-latest
     strategy:
-      # Report every flavor's result. On a drift run the second flavor's
+      # Report every addon's result. On a drift run the second addon's
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        flavor: [typescript-node, typescript-react]
+        addon: [typescript-node, typescript-react]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -55,9 +57,57 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version-file: templates/${{ matrix.flavor }}/.nvmrc
+          node-version-file: templates/addons/${{ matrix.addon }}/files/.nvmrc
           # No pnpm cache: this repo has no lockfile, and caching resolution
           # would blunt the upstream drift the scheduled run exists to catch.
 
-      - name: Verify flavor
-        run: ./verify.sh --flavor ${{ matrix.flavor }}
+      # The base gate verify.sh runs in each scaffold needs the same tools, at
+      # the same versions, as the scaffold's own lint workflow.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+
+      - name: Install zizmor and typos
+        run: python -m pip install --require-hashes -r templates/base/files/.github/requirements-ci.txt
+
+      - name: Install markdownlint
+        run: |
+          npm ci --ignore-scripts --prefix tests/tools
+          echo "$GITHUB_WORKSPACE/tests/tools/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Install gitleaks
+        env:
+          # renovate: datasource=github-release-attachments depName=gitleaks/gitleaks
+          VERSION: v8.30.1
+          SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -sSfL --retry 3 --retry-all-errors -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz"
+          echo "${SHA256}  gitleaks.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf gitleaks.tar.gz -C "$RUNNER_TEMP/bin" gitleaks
+          rm gitleaks.tar.gz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install actionlint
+        env:
+          # renovate: datasource=github-release-attachments depName=rhysd/actionlint
+          VERSION: v1.7.12
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          curl -sSfL --retry 3 --retry-all-errors -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/${VERSION}/actionlint_${VERSION#v}_linux_amd64.tar.gz"
+          echo "${SHA256}  actionlint.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf actionlint.tar.gz -C "$RUNNER_TEMP/bin" actionlint
+          rm actionlint.tar.gz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Verify addon
+        run: ./verify.sh --addon ${{ matrix.addon }}
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Slow tests for this addon
+        run: bats --filter-tags "slow,addon:${{ matrix.addon }}" tests/

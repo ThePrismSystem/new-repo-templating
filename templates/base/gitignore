@@ -1,0 +1,27 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Testing
+coverage/
+test-results/
+
+# Agent config (per-contributor)
+CLAUDE.md
+.claude/
+
+# Temporary files
+.tmp/
+*.log
+*.patch

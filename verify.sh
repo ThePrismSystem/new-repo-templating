@@ -3,7 +3,7 @@
 # tests/verify.bats sources this file, and setting shell options at load time
 # would leak errexit and nounset into the bats test shell.
 
-PUBLIC_ONLY_WORKFLOWS=(".github/workflows/codeql.yml" ".github/workflows/gitleaks.yml")
+PUBLIC_ONLY_WORKFLOWS=(".github/workflows/codeql.yml" ".github/workflows/scorecard.yml")
 
 # Fails if setup.sh left any {{PLACEHOLDER}} unsubstituted in the scaffold.
 # grep exits 0 when it finds a match, which is the failure case here.
@@ -43,25 +43,30 @@ assert_visibility() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-AVAILABLE_FLAVORS=("typescript-node" "typescript-react")
-GATE_STEPS=("format" "lint" "typecheck" "__TEST__" "knip" "spell" "build")
+AVAILABLE_ADDONS=()
+for addon_path in "$SCRIPT_DIR"/templates/addons/*/; do
+  addon_path="${addon_path%/}"
+  AVAILABLE_ADDONS+=("${addon_path##*/}")
+done
+unset addon_path
 
 KEEP=false
 SKIP_AUDIT=false
-SELECTED_FLAVORS=()
+SELECTED_ADDONS=()
 WORKDIRS=()
 
 usage() {
   cat <<EOF
-Usage: $0 [--flavor typescript-node|typescript-react] [--keep] [--skip-audit]
+Usage: $0 [--addon <name>] [--keep] [--skip-audit]
 
-Scaffolds each template flavor into a temporary directory and runs the same
-gate the generated project's own CI runs.
+Scaffolds each addon into a temporary directory and runs the same gate the
+generated project's own CI runs.
 
 Options:
-  --flavor        Verify a single flavor (default: all flavors)
+  --addon         Verify a single addon (default: all addons)
+                  Available: ${AVAILABLE_ADDONS[*]}
   --keep          Leave scaffolds on disk for debugging instead of deleting
-  --skip-audit    Skip 'pnpm audit' (use when blocked by an unfixable advisory)
+  --skip-audit    Skip dependency audits (use when blocked by an unfixable advisory)
   -h, --help      Show this help message
 EOF
 }
@@ -80,62 +85,69 @@ cleanup() {
   done
 }
 
-# The node flavor excludes integration tests from its coverage run; the react
-# flavor has no such split. Read the answer from the scaffold instead of
-# branching on flavor name, so a new flavor works without editing this.
-resolve_test_script() {
-  local dir="$1"
-  if jq -e '.scripts["test:unit:coverage"]' "$dir/package.json" >/dev/null 2>&1; then
-    echo "test:unit:coverage"
-  else
-    echo "test:coverage"
-  fi
-}
-
+# Runs the check script of every addon the scaffold was built with, the same
+# script each addon's CI jobs call one step at a time.
 run_gate() {
   local dir="$1"
-  local test_script
-  test_script="$(resolve_test_script "$dir")"
-
-  local step
-  for step in "${GATE_STEPS[@]}"; do
-    if [[ "$step" == "__TEST__" ]]; then
-      step="$test_script"
+  local addon check
+  while IFS= read -r addon; do
+    check="$(jq -r '.check // empty' "$SCRIPT_DIR/templates/addons/$addon/addon.json")"
+    if [[ -z "$check" ]]; then
+      echo "FAIL: addon '$addon' has no check script in addon.json" >&2
+      return 1
     fi
-    echo "  -> pnpm $step"
-    ( cd "$dir" && pnpm "$step" )
-  done
-
-  if [[ "$SKIP_AUDIT" == "false" ]]; then
-    echo "  -> pnpm audit"
-    ( cd "$dir" && pnpm audit --audit-level moderate )
-  fi
+    echo "  -> $check all"
+    (
+      cd "$dir"
+      if [[ "$SKIP_AUDIT" == "true" ]]; then
+        export SKIP_AUDIT=1
+      else
+        unset SKIP_AUDIT
+      fi
+      "$check" all
+    )
+  done < <(jq -r '.addons[]' "$dir/.github/repo-standards.json")
 }
 
-verify_flavor() {
-  local flavor="$1"
+# gitleaks reads history, so the scaffold gets one commit first. Hooks are
+# skipped: the gate below runs everything they would.
+run_base_gate() {
+  local dir="$1"
+  echo "  -> scripts/check-base.sh all"
+  (
+    cd "$dir"
+    git add -A
+    git -c user.name=verify -c user.email=verify@example.invalid \
+      commit -q --no-verify --no-gpg-sign -m "chore: initial scaffold"
+    scripts/check-base.sh all
+  )
+}
+
+verify_addon() {
+  local addon="$1"
   local base
   base="$(mktemp -d)"
   WORKDIRS+=("$base")
 
-  echo "=== Verifying $flavor ==="
+  echo "=== Verifying $addon ==="
 
   # setup.sh refuses to write into an existing directory, so hand it a path
   # one level below the mktemp dir rather than the mktemp dir itself.
   echo "-- structural checks (private, no install)"
   "$SCRIPT_DIR/setup.sh" verify-private "$base/private" \
-    --flavor "$flavor" --visibility private --no-install >/dev/null
+    --addon "$addon" --visibility private --no-install >/dev/null
   assert_visibility "$base/private" private
   assert_no_placeholders "$base/private"
 
   echo "-- full gate (public, with install)"
   "$SCRIPT_DIR/setup.sh" verify-public "$base/public" \
-    --flavor "$flavor" --visibility public >/dev/null
+    --addon "$addon" --visibility public >/dev/null
   assert_visibility "$base/public" public
   assert_no_placeholders "$base/public"
   run_gate "$base/public"
+  run_base_gate "$base/public"
 
-  echo "=== $flavor OK ==="
+  echo "=== $addon OK ==="
 }
 
 main() {
@@ -145,8 +157,8 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --flavor)
-        SELECTED_FLAVORS=("$2")
+      --addon)
+        SELECTED_ADDONS=("$2")
         shift 2
         ;;
       --keep)
@@ -169,26 +181,26 @@ main() {
     esac
   done
 
-  if (( ${#SELECTED_FLAVORS[@]} == 0 )); then
-    SELECTED_FLAVORS=("${AVAILABLE_FLAVORS[@]}")
+  if (( ${#SELECTED_ADDONS[@]} == 0 )); then
+    SELECTED_ADDONS=("${AVAILABLE_ADDONS[@]}")
   fi
 
-  local flavor
-  for flavor in "${SELECTED_FLAVORS[@]}"; do
-    if [[ ! -d "$SCRIPT_DIR/templates/$flavor" ]]; then
-      echo "Error: Unknown flavor '$flavor'" >&2
+  local addon
+  for addon in "${SELECTED_ADDONS[@]}"; do
+    if [[ ! -f "$SCRIPT_DIR/templates/addons/$addon/addon.json" ]]; then
+      echo "Error: Unknown addon '$addon'" >&2
       exit 1
     fi
   done
 
   trap cleanup EXIT
 
-  for flavor in "${SELECTED_FLAVORS[@]}"; do
-    verify_flavor "$flavor"
+  for addon in "${SELECTED_ADDONS[@]}"; do
+    verify_addon "$addon"
   done
 
   echo ""
-  echo "All flavors verified."
+  echo "All addons verified."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

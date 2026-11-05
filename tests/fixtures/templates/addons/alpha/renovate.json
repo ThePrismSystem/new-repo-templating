@@ -1,0 +1,4 @@
+{
+  "packageRules": [{ "description": "alpha rule" }],
+  "customManagers": [{ "description": "alpha manager" }]
+}
