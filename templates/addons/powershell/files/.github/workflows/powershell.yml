@@ -1,0 +1,96 @@
+name: powershell
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every job runs one step of scripts/check-powershell.ps1, so a local run
+# checks the same things. The tests run on PowerShell 7 and on Windows
+# PowerShell 5.1.
+jobs:
+  powershell-lint:
+    name: powershell-lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # >>> public
+      security-events: write # to upload the SARIF results to code scanning
+      # <<< public
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PSScriptAnalyzer and InjectionHunter
+        run: |
+          # renovate: datasource=nuget depName=PSScriptAnalyzer registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
+          # renovate: datasource=nuget depName=InjectionHunter registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module InjectionHunter -RequiredVersion 1.0.0 -Scope CurrentUser -Force
+
+      - name: Analyze
+        env:
+          SARIF_DIR: sarif
+        run: ./scripts/check-powershell.ps1 lint
+
+      # >>> public
+      # A pull request from a fork gets a token that can't write to code scanning.
+      - name: Upload PSScriptAnalyzer results
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/powershell.sarif
+          category: psscriptanalyzer
+      # <<< public
+
+  powershell-test:
+    name: powershell-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      # Each OS reports its own result.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            shell: pwsh
+          # `powershell` is Windows PowerShell 5.1.
+          - os: windows-latest
+            shell: powershell
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Windows ships an old Pester signed by a different publisher, so the
+      # publisher check would refuse the upgrade.
+      - name: Install Pester
+        run: |
+          # renovate: datasource=nuget depName=Pester registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module Pester -RequiredVersion 6.2.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - run: ./scripts/check-powershell.ps1 test
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: powershell
+          files: coverage/powershell.xml
+          disable_search: true
+          fail_ci_if_error: true

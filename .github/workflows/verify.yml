@@ -45,7 +45,7 @@ jobs:
       # failure is as informative as the first.
       fail-fast: false
       matrix:
-        addon: [typescript-node, typescript-react, javascript, python, shell, lua]
+        addon: [typescript-node, typescript-react, javascript, python, shell, lua, powershell]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -179,6 +179,17 @@ jobs:
           rm luals.tar.gz
           echo "$RUNNER_TEMP/lua-language-server/bin" >> "$GITHUB_PATH"
 
+      - name: Install the PowerShell modules
+        if: matrix.addon == 'powershell'
+        shell: pwsh
+        run: |
+          # renovate: datasource=nuget depName=PSScriptAnalyzer registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
+          # renovate: datasource=nuget depName=InjectionHunter registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module InjectionHunter -RequiredVersion 1.0.0 -Scope CurrentUser -Force
+          # renovate: datasource=nuget depName=Pester registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module Pester -RequiredVersion 6.2.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
       # The shell addon's own tests run on it inside verify.sh, and every
       # addon's slow tests run on it below.
       - name: Install bats
@@ -189,3 +200,26 @@ jobs:
 
       - name: Slow tests for this addon
         run: bats --filter-tags "slow,addon:${{ matrix.addon }}" tests/
+
+  # The powershell addon promises Windows PowerShell 5.1 as well as
+  # PowerShell 7, and only a Windows runner has 5.1.
+  verify-powershell-windows:
+    name: Verify powershell on Windows PowerShell 5.1
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Scaffold the addon
+        shell: bash
+        run: ./setup.sh demo "$(cygpath -u "$RUNNER_TEMP")/demo" --addon powershell --no-install
+
+      - name: Install Pester
+        shell: powershell
+        run: |
+          # renovate: datasource=nuget depName=Pester registryUrl=https://www.powershellgallery.com/api/v2/
+          Install-Module Pester -RequiredVersion 6.2.0 -Scope CurrentUser -Force -SkipPublisherCheck
+
+      - name: Run the tests
+        shell: powershell
+        working-directory: ${{ runner.temp }}/demo
+        run: ./scripts/check-powershell.ps1 test

@@ -1,0 +1,17 @@
+{
+  "name": "powershell",
+  "description": "PowerShell modules and scripts for Windows PowerShell 5.1 and PowerShell 7",
+  "checks": [
+    "powershell-lint",
+    "powershell-test (ubuntu-latest)",
+    "powershell-test (windows-latest)"
+  ],
+  "coverage": {
+    "flag": "powershell",
+    "paths": [
+      "src/**"
+    ],
+    "uploads": 2
+  },
+  "check": "scripts/check-powershell.sh"
+}

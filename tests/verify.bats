@@ -214,3 +214,47 @@ SH
   [ "$status" -ne 0 ]
   [[ "$output" == *"floor 80%"* ]]
 }
+
+# bats test_tags=slow,addon:powershell
+@test "powershell lint rejects Invoke-Expression on input, with InjectionHunter's rule" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-powershell.sh lint
+  [ "$status" -eq 0 ]
+  cat >src/Run.ps1 <<'PS1'
+function Invoke-UserCommand {
+    param([string] $UserInput)
+    Invoke-Expression $UserInput
+}
+PS1
+  run scripts/check-powershell.sh lint
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"InjectionRisk.InvokeExpression"* ]]
+}
+
+# bats test_tags=slow,addon:powershell
+@test "powershell lint writes its findings as SARIF when SARIF_DIR is set" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  printf "function Invoke-UserCommand {\n    param([string] \$UserInput)\n    Invoke-Expression \$UserInput\n}\n" >src/Run.ps1
+  SARIF_DIR=sarif run scripts/check-powershell.sh lint
+  [ "$status" -ne 0 ]
+  run jq -r '.version, .runs[0].tool.driver.name, ([.runs[0].results[] | select(.ruleId == "InjectionRisk.InvokeExpression") | .locations[0].physicalLocation | "\(.artifactLocation.uri):\(.region.startLine)"] | first)' \
+    sarif/powershell.sarif
+  [ "$output" = "$(printf '2.1.0\nPSScriptAnalyzer\nsrc/Run.ps1:3')" ]
+}
+
+# bats test_tags=slow,addon:powershell
+@test "powershell test counts a module no test loads against the floor" {
+  "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell >/dev/null
+  cd "$WORK/proj" || return 1
+  run scripts/check-powershell.sh test
+  [ "$status" -eq 0 ]
+  [ -f coverage/powershell.xml ]
+  for i in $(seq 1 20); do
+    printf "function Get-Value%d {\n    param([bool] \$Flag)\n    if (\$Flag) {\n        return %d\n    }\n    return -%d\n}\n\n" "$i" "$i" "$i"
+  done >src/Untested.psm1
+  run scripts/check-powershell.sh test
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"under the 80% floor"* ]]
+}

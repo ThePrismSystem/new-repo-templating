@@ -296,3 +296,46 @@ teardown() {
   run grep -c '# renovate:' "$WORK/proj/.github/workflows/lua.yml"
   [ "$output" -eq 5 ]
 }
+
+@test "powershell scaffold has its workflow, settings and check scripts" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell --no-install
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/proj/.github/workflows/powershell.yml" ]
+  [ -f "$WORK/proj/PSScriptAnalyzerSettings.psd1" ]
+  [ -f "$WORK/proj/scripts/check-powershell.ps1" ]
+  [ -x "$WORK/proj/scripts/check-powershell.sh" ]
+}
+
+@test "powershell scaffold requires the lint job and a test job per OS" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell --no-install
+  [ "$status" -eq 0 ]
+  run jq -c '[.requiredChecks[].context | select(startswith("powershell-") or . == "codecov/patch" or startswith("analyze"))]' \
+    "$WORK/proj/.github/repo-standards.json"
+  [ "$output" = '["powershell-lint","powershell-test (ubuntu-latest)","powershell-test (windows-latest)","analyze (actions)","codecov/patch"]' ]
+  # The test job's name has to expand to exactly those two contexts.
+  grep -qF "name: powershell-test (\${{ matrix.os }})" "$WORK/proj/.github/workflows/powershell.yml"
+  grep -qE 'os: \[ubuntu-latest, windows-latest\]' "$WORK/proj/.github/workflows/powershell.yml"
+  run grep -E 'after_n_builds: [0-9]+' "$WORK/proj/codecov.yml"
+  [[ "$output" == *"after_n_builds: 2"* ]]
+}
+
+@test "powershell scaffold's module installs are all read by renovate" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell --no-install
+  [ "$status" -eq 0 ]
+  run node "$BATS_TEST_DIRNAME/helpers/unread-renovate-comments.js" "$WORK/proj/renovate.json" "$WORK/proj" \
+    "$WORK/proj"/.github/workflows/*.yml
+  echo "$output"
+  [ "$status" -eq 0 ]
+  run grep -c '# renovate:' "$WORK/proj/.github/workflows/powershell.yml"
+  [ "$output" -eq 3 ]
+}
+
+@test "private powershell scaffold doesn't upload SARIF" {
+  run "$REPO_ROOT/setup.sh" demo "$WORK/proj" --addon powershell --visibility private --no-install
+  [ "$status" -eq 0 ]
+  run grep -c 'upload-sarif\|security-events' "$WORK/proj/.github/workflows/powershell.yml"
+  [ "$output" = "0" ]
+  run "$REPO_ROOT/setup.sh" demo "$WORK/pub" --addon powershell --no-install
+  run grep -c 'upload-sarif' "$WORK/pub/.github/workflows/powershell.yml"
+  [ "$output" = "1" ]
+}
