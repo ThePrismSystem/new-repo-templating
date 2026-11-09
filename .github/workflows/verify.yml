@@ -64,7 +64,7 @@ jobs:
       # the same versions, as the scaffold's own lint workflow.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.15"
 
       - name: Install zizmor and typos
         run: python -m pip install --require-hashes -r templates/base/files/.github/requirements-ci.txt
